@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.20)
+project(ai_chat VERSION 1.0.0 LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+find_package(Boost REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(spdlog REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(CURL REQUIRED)
+
+option(BUILD_TESTS "Build unit tests" ON)
+if(BUILD_TESTS)
+    enable_testing()
+endif()
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+add_subdirectory(server)
