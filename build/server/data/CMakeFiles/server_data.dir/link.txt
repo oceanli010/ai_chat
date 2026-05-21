@@ -1,0 +1,2 @@
+/usr/bin/ar qc libserver_data.a CMakeFiles/server_data.dir/src/database.cpp.o CMakeFiles/server_data.dir/src/mysql_database.cpp.o CMakeFiles/server_data.dir/src/redis_cache.cpp.o CMakeFiles/server_data.dir/src/connection_pool.cpp.o CMakeFiles/server_data.dir/src/user_repository.cpp.o CMakeFiles/server_data.dir/src/chat_repository.cpp.o
+/usr/bin/ranlib libserver_data.a

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libserver_infrastructure.a CMakeFiles/server_infrastructure.dir/src/logger.cpp.o CMakeFiles/server_infrastructure.dir/src/config.cpp.o CMakeFiles/server_infrastructure.dir/src/thread_pool.cpp.o CMakeFiles/server_infrastructure.dir/src/crypto_util.cpp.o CMakeFiles/server_infrastructure.dir/src/token_manager.cpp.o CMakeFiles/server_infrastructure.dir/src/email_sender.cpp.o
+/usr/bin/ranlib libserver_infrastructure.a

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libserver_model.a CMakeFiles/server_model.dir/src/user.cpp.o CMakeFiles/server_model.dir/src/chat_message.cpp.o
+/usr/bin/ranlib libserver_model.a

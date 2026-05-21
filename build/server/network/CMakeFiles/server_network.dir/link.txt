@@ -1,0 +1,2 @@
+/usr/bin/ar qc libserver_network.a CMakeFiles/server_network.dir/src/tls_context.cpp.o CMakeFiles/server_network.dir/src/protocol.cpp.o CMakeFiles/server_network.dir/src/http_server.cpp.o CMakeFiles/server_network.dir/src/ws_server.cpp.o CMakeFiles/server_network.dir/src/session.cpp.o
+/usr/bin/ranlib libserver_network.a

@@ -1,0 +1,170 @@
+[
+{
+  "directory": "/workspace/build/server",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/data/include -I/workspace/server/business/include -I/workspace/server/network/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/ai_chat_server.dir/main.cpp.o -c /workspace/server/main.cpp",
+  "file": "/workspace/server/main.cpp",
+  "output": "server/CMakeFiles/ai_chat_server.dir/main.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/infrastructure",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/infrastructure/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_infrastructure.dir/src/logger.cpp.o -c /workspace/server/infrastructure/src/logger.cpp",
+  "file": "/workspace/server/infrastructure/src/logger.cpp",
+  "output": "server/infrastructure/CMakeFiles/server_infrastructure.dir/src/logger.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/infrastructure",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/infrastructure/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_infrastructure.dir/src/config.cpp.o -c /workspace/server/infrastructure/src/config.cpp",
+  "file": "/workspace/server/infrastructure/src/config.cpp",
+  "output": "server/infrastructure/CMakeFiles/server_infrastructure.dir/src/config.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/infrastructure",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/infrastructure/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_infrastructure.dir/src/thread_pool.cpp.o -c /workspace/server/infrastructure/src/thread_pool.cpp",
+  "file": "/workspace/server/infrastructure/src/thread_pool.cpp",
+  "output": "server/infrastructure/CMakeFiles/server_infrastructure.dir/src/thread_pool.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/infrastructure",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/infrastructure/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_infrastructure.dir/src/crypto_util.cpp.o -c /workspace/server/infrastructure/src/crypto_util.cpp",
+  "file": "/workspace/server/infrastructure/src/crypto_util.cpp",
+  "output": "server/infrastructure/CMakeFiles/server_infrastructure.dir/src/crypto_util.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/infrastructure",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/infrastructure/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_infrastructure.dir/src/token_manager.cpp.o -c /workspace/server/infrastructure/src/token_manager.cpp",
+  "file": "/workspace/server/infrastructure/src/token_manager.cpp",
+  "output": "server/infrastructure/CMakeFiles/server_infrastructure.dir/src/token_manager.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/infrastructure",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/infrastructure/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_infrastructure.dir/src/email_sender.cpp.o -c /workspace/server/infrastructure/src/email_sender.cpp",
+  "file": "/workspace/server/infrastructure/src/email_sender.cpp",
+  "output": "server/infrastructure/CMakeFiles/server_infrastructure.dir/src/email_sender.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/model",
+  "command": "/usr/bin/c++  -I/workspace/server/model/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_model.dir/src/user.cpp.o -c /workspace/server/model/src/user.cpp",
+  "file": "/workspace/server/model/src/user.cpp",
+  "output": "server/model/CMakeFiles/server_model.dir/src/user.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/model",
+  "command": "/usr/bin/c++  -I/workspace/server/model/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_model.dir/src/chat_message.cpp.o -c /workspace/server/model/src/chat_message.cpp",
+  "file": "/workspace/server/model/src/chat_message.cpp",
+  "output": "server/model/CMakeFiles/server_model.dir/src/chat_message.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/data",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/data/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_data.dir/src/database.cpp.o -c /workspace/server/data/src/database.cpp",
+  "file": "/workspace/server/data/src/database.cpp",
+  "output": "server/data/CMakeFiles/server_data.dir/src/database.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/data",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/data/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_data.dir/src/mysql_database.cpp.o -c /workspace/server/data/src/mysql_database.cpp",
+  "file": "/workspace/server/data/src/mysql_database.cpp",
+  "output": "server/data/CMakeFiles/server_data.dir/src/mysql_database.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/data",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/data/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_data.dir/src/redis_cache.cpp.o -c /workspace/server/data/src/redis_cache.cpp",
+  "file": "/workspace/server/data/src/redis_cache.cpp",
+  "output": "server/data/CMakeFiles/server_data.dir/src/redis_cache.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/data",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/data/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_data.dir/src/connection_pool.cpp.o -c /workspace/server/data/src/connection_pool.cpp",
+  "file": "/workspace/server/data/src/connection_pool.cpp",
+  "output": "server/data/CMakeFiles/server_data.dir/src/connection_pool.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/data",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/data/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_data.dir/src/user_repository.cpp.o -c /workspace/server/data/src/user_repository.cpp",
+  "file": "/workspace/server/data/src/user_repository.cpp",
+  "output": "server/data/CMakeFiles/server_data.dir/src/user_repository.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/data",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/data/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_data.dir/src/chat_repository.cpp.o -c /workspace/server/data/src/chat_repository.cpp",
+  "file": "/workspace/server/data/src/chat_repository.cpp",
+  "output": "server/data/CMakeFiles/server_data.dir/src/chat_repository.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/business",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/business/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_business.dir/src/service_locator.cpp.o -c /workspace/server/business/src/service_locator.cpp",
+  "file": "/workspace/server/business/src/service_locator.cpp",
+  "output": "server/business/CMakeFiles/server_business.dir/src/service_locator.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/business",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/business/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_business.dir/src/auth_service.cpp.o -c /workspace/server/business/src/auth_service.cpp",
+  "file": "/workspace/server/business/src/auth_service.cpp",
+  "output": "server/business/CMakeFiles/server_business.dir/src/auth_service.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/business",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/business/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_business.dir/src/user_service.cpp.o -c /workspace/server/business/src/user_service.cpp",
+  "file": "/workspace/server/business/src/user_service.cpp",
+  "output": "server/business/CMakeFiles/server_business.dir/src/user_service.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/business",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/business/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_business.dir/src/chat_service.cpp.o -c /workspace/server/business/src/chat_service.cpp",
+  "file": "/workspace/server/business/src/chat_service.cpp",
+  "output": "server/business/CMakeFiles/server_business.dir/src/chat_service.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/business",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/business/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_business.dir/src/ai_service.cpp.o -c /workspace/server/business/src/ai_service.cpp",
+  "file": "/workspace/server/business/src/ai_service.cpp",
+  "output": "server/business/CMakeFiles/server_business.dir/src/ai_service.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/business",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/business/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_business.dir/src/admin_service.cpp.o -c /workspace/server/business/src/admin_service.cpp",
+  "file": "/workspace/server/business/src/admin_service.cpp",
+  "output": "server/business/CMakeFiles/server_business.dir/src/admin_service.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/network",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/network/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/business/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_network.dir/src/tls_context.cpp.o -c /workspace/server/network/src/tls_context.cpp",
+  "file": "/workspace/server/network/src/tls_context.cpp",
+  "output": "server/network/CMakeFiles/server_network.dir/src/tls_context.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/network",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/network/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/business/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_network.dir/src/protocol.cpp.o -c /workspace/server/network/src/protocol.cpp",
+  "file": "/workspace/server/network/src/protocol.cpp",
+  "output": "server/network/CMakeFiles/server_network.dir/src/protocol.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/network",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/network/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/business/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_network.dir/src/http_server.cpp.o -c /workspace/server/network/src/http_server.cpp",
+  "file": "/workspace/server/network/src/http_server.cpp",
+  "output": "server/network/CMakeFiles/server_network.dir/src/http_server.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/network",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/network/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/business/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_network.dir/src/ws_server.cpp.o -c /workspace/server/network/src/ws_server.cpp",
+  "file": "/workspace/server/network/src/ws_server.cpp",
+  "output": "server/network/CMakeFiles/server_network.dir/src/ws_server.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/network",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/network/include -I/workspace/server/infrastructure/include -I/workspace/server/model/include -I/workspace/server/business/include -I/workspace/server/data/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -o CMakeFiles/server_network.dir/src/session.cpp.o -c /workspace/server/network/src/session.cpp",
+  "file": "/workspace/server/network/src/session.cpp",
+  "output": "server/network/CMakeFiles/server_network.dir/src/session.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/tests",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/infrastructure/include -I/workspace/server/data/include -I/workspace/server/model/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -DGTEST_HAS_PTHREAD=1 -o CMakeFiles/test_all.dir/test_crypto_util.cpp.o -c /workspace/server/tests/test_crypto_util.cpp",
+  "file": "/workspace/server/tests/test_crypto_util.cpp",
+  "output": "server/tests/CMakeFiles/test_all.dir/test_crypto_util.cpp.o"
+},
+{
+  "directory": "/workspace/build/server/tests",
+  "command": "/usr/bin/c++ -DFMT_SHARED -DSPDLOG_COMPILED_LIB -DSPDLOG_FMT_EXTERNAL -DSPDLOG_SHARED_LIB -I/workspace/server/infrastructure/include -I/workspace/server/data/include -I/workspace/server/model/include -O3 -DNDEBUG -std=gnu++20 -Wall -Wextra -Wpedantic -Wno-unused-parameter -O2 -DGTEST_HAS_PTHREAD=1 -o CMakeFiles/test_all.dir/test_connection_pool.cpp.o -c /workspace/server/tests/test_connection_pool.cpp",
+  "file": "/workspace/server/tests/test_connection_pool.cpp",
+  "output": "server/tests/CMakeFiles/test_all.dir/test_connection_pool.cpp.o"
+}
+]

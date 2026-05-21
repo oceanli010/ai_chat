@@ -1,0 +1,2 @@
+/usr/bin/ar qc libserver_business.a CMakeFiles/server_business.dir/src/service_locator.cpp.o CMakeFiles/server_business.dir/src/auth_service.cpp.o CMakeFiles/server_business.dir/src/user_service.cpp.o CMakeFiles/server_business.dir/src/chat_service.cpp.o CMakeFiles/server_business.dir/src/ai_service.cpp.o CMakeFiles/server_business.dir/src/admin_service.cpp.o
+/usr/bin/ranlib libserver_business.a
