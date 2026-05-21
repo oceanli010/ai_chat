@@ -94,14 +94,21 @@ const form = reactive({
   nickname: ''
 })
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 let countdownTimer = null
 
 async function sendCode() {
   error.value = ''
   successMsg.value = ''
+
+  if (!form.email || !emailRegex.test(form.email)) {
+    error.value = '请输入有效的邮箱地址'
+    return
+  }
+
   loading.value = true
   try {
-    await userStore.register(form.email, '', '')
+    await userStore.register(form.email)
     successMsg.value = '验证码已发送到您的邮箱'
     step.value = 2
     startCountdown()
@@ -125,6 +132,22 @@ function startCountdown() {
 
 async function handleRegister() {
   error.value = ''
+
+  if (!form.code || !/^\d{6}$/.test(form.code)) {
+    error.value = '请输入6位数字验证码'
+    return
+  }
+
+  if (!form.nickname) {
+    error.value = '请输入昵称'
+    return
+  }
+
+  if (form.password.length < 6) {
+    error.value = '密码至少需要6位'
+    return
+  }
+
   loading.value = true
   try {
     await userStore.verifyEmail(form.email, form.code, form.nickname, form.password)

@@ -164,3 +164,93 @@ nlohmann::json UserService::deleteAccount(const std::string& token) {
     
     return {{"status", "error"}, {"message", "Failed to delete account"}};
 }
+
+nlohmann::json UserService::forgotPassword(const std::string& email) {
+    LOG_INFO("UserService::forgotPassword: {}", email);
+    
+    auto redis = ServiceLocator::instance().redisCache();
+    if (!redis) {
+        return {{"status", "error"}, {"message", "Redis not available"}};
+    }
+    
+    std::string code = std::to_string(rand() % 900000 + 100000);
+    redis->setEx("reset_code:" + email, 300, code);
+    
+    LOG_INFO("Password reset code for {}: {}", email, code);
+    
+    EmailSender sender;
+    std::string subject = "AI Chat - Password Reset Code";
+    std::string body = "Your password reset code is: " + code + "\n\nThe code will expire in 5 minutes.\n\nIf you did not request this, please ignore this email.";
+    
+    if (!sender.send(email, subject, body)) {
+        LOG_ERROR("Failed to send password reset code email to: {}", email);
+        return {{"status", "error"}, {"message", "Failed to send password reset code email"}, {"code", code}};
+    }
+    
+    LOG_INFO("Password reset code sent to: {}", email);
+    return {{"status", "ok"}};
+}
+
+nlohmann::json UserService::resetPassword(const std::string& email, const std::string& code, const std::string& newPassword) {
+    LOG_INFO("UserService::resetPassword: {}", email);
+    
+    auto redis = ServiceLocator::instance().redisCache();
+    if (!redis) {
+        return {{"status", "error"}, {"message", "Redis not available"}};
+    }
+    
+    std::string stored_code = redis->get("reset_code:" + email);
+    if (stored_code.empty() || stored_code != code) {
+        return {{"status", "error"}, {"message", "Invalid verification code"}};
+    }
+    
+    auto user_repo = ServiceLocator::instance().userRepository();
+    if (!user_repo) {
+        return {{"status", "error"}, {"message", "User repository not available"}};
+    }
+    
+    auto user = user_repo->findByEmail(email);
+    if (!user) {
+        return {{"status", "error"}, {"message", "User not found"}};
+    }
+    
+    std::string new_hash = CryptoUtil::hashPassword(newPassword);
+    if (user_repo->updatePassword(user->id, new_hash)) {
+        redis->del("reset_code:" + email);
+        return {{"status", "ok"}};
+    }
+    
+    return {{"status", "error"}, {"message", "Failed to reset password"}};
+}
+
+nlohmann::json UserService::changePassword(const std::string& token, const std::string& oldPassword, const std::string& newPassword) {
+    LOG_INFO("UserService::changePassword");
+    
+    auto token_mgr = ServiceLocator::instance().tokenManager();
+    auto user_repo = ServiceLocator::instance().userRepository();
+    
+    if (!token_mgr || !user_repo) {
+        return {{"status", "error"}, {"message", "Service not available"}};
+    }
+    
+    auto payload = token_mgr->validateToken(token);
+    if (!payload) {
+        return {{"status", "error"}, {"message", "Invalid token"}};
+    }
+    
+    auto user = user_repo->findById(payload->user_id);
+    if (!user) {
+        return {{"status", "error"}, {"message", "User not found"}};
+    }
+    
+    if (!CryptoUtil::verifyPassword(oldPassword, user->passwordHash)) {
+        return {{"status", "error"}, {"message", "Invalid old password"}};
+    }
+    
+    std::string new_hash = CryptoUtil::hashPassword(newPassword);
+    if (user_repo->updatePassword(payload->user_id, new_hash)) {
+        return {{"status", "ok"}};
+    }
+    
+    return {{"status", "error"}, {"message", "Failed to change password"}};
+}

@@ -91,6 +91,18 @@ static nlohmann::json handle_request(const string& path, const string& method, c
             auto& chat_service = ServiceLocator::instance().getChatService();
             bool ok = chat_service.clearHistory(payload->user_id);
             return {{"status", ok ? "ok" : "error"}};
+        } else if (path == "/api/auth/forgot-password" && method == "POST") {
+            auto data = nlohmann::json::parse(body);
+            auto& user_service = ServiceLocator::instance().getUserService();
+            return user_service.forgotPassword(data["email"]);
+        } else if (path == "/api/auth/reset-password" && method == "POST") {
+            auto data = nlohmann::json::parse(body);
+            auto& user_service = ServiceLocator::instance().getUserService();
+            return user_service.resetPassword(data["email"], data["code"], data["password"]);
+        } else if (path == "/api/user/password" && method == "PUT") {
+            auto data = nlohmann::json::parse(body);
+            auto& user_service = ServiceLocator::instance().getUserService();
+            return user_service.changePassword(token, data["old_password"], data["new_password"]);
         }
         
         return {{"status", "error"}, {"message", "Endpoint not found"}};

@@ -19,6 +19,7 @@ public:
     std::vector<User> findAll(int offset, int limit);
     bool save(const User& user);
     bool updateNickname(const std::string& userId, const std::string& nickname);
+    bool updatePassword(const std::string& userId, const std::string& newPasswordHash);
 
 private:
     std::shared_ptr<ConnectionPool> pool_;

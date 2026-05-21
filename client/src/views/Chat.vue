@@ -7,8 +7,22 @@
       </div>
     </div>
 
+    <div class="ws-status-bar">
+      <div v-if="wsError" class="ws-error-bar" @click="dismissError">
+        <span class="ws-error-text">{{ wsError }}</span>
+        <span class="ws-error-close">&times;</span>
+      </div>
+      <div v-if="reconnectCount > 0" class="ws-reconnect-bar">
+        Reconnecting... ({{ reconnectCount }})
+      </div>
+    </div>
+
     <div class="messages-container" ref="messagesContainer">
-      <div v-if="messages.length === 0" class="empty-chat">
+      <div v-if="loadingHistory" class="empty-chat">
+        <div class="loading-spinner"></div>
+        <p>加载聊天记录中...</p>
+      </div>
+      <div v-else-if="messages.length === 0" class="empty-chat">
         <div class="empty-icon">💬</div>
         <p>开始和 AI 对话吧</p>
       </div>
@@ -48,7 +62,11 @@ const messagesContainer = ref(null)
 const messages = ref([])
 const streaming = ref(false)
 const wsConnected = ref(false)
+const wsError = ref('')
+const reconnectCount = ref(0)
+const loadingHistory = ref(false)
 const nextId = ref(1)
+let wsErrorTimer = null
 
 function generateId() {
   return `msg_${Date.now()}_${nextId.value++}`
@@ -93,7 +111,20 @@ function handleChatResponse(data) {
 
 function handleError(data) {
   streaming.value = false
-  addMessage('assistant', `[错误] ${data.message || '未知错误'}`)
+  wsError.value = data?.message || 'WebSocket connection error'
+  if (wsErrorTimer) clearTimeout(wsErrorTimer)
+  wsErrorTimer = setTimeout(() => {
+    wsError.value = ''
+    wsErrorTimer = null
+  }, 5000)
+}
+
+function dismissError() {
+  wsError.value = ''
+  if (wsErrorTimer) {
+    clearTimeout(wsErrorTimer)
+    wsErrorTimer = null
+  }
 }
 
 async function clearHistory() {
@@ -103,6 +134,26 @@ async function clearHistory() {
   } catch (e) {
     console.error('Failed to clear history:', e)
   }
+}
+
+async function loadHistory() {
+  loadingHistory.value = true
+  try {
+    const result = await api.chat.getHistory(1, 100)
+    if (result.messages && Array.isArray(result.messages)) {
+      messages.value = result.messages.map((msg) => ({
+        id: msg.id || generateId(),
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.created_at ? new Date(msg.created_at).getTime() : Date.now()
+      }))
+    }
+  } catch (e) {
+    console.error('Failed to load history:', e)
+  } finally {
+    loadingHistory.value = false
+  }
+  scrollToBottom()
 }
 
 onMounted(async () => {
@@ -117,23 +168,21 @@ onMounted(async () => {
     console.error('Failed to fetch profile:', e)
   }
 
-  try {
-    const result = await api.chat.getHistory(1, 100)
-    if (result.messages && Array.isArray(result.messages)) {
-      messages.value = result.messages.map((msg) => ({
-        id: msg.id || generateId(),
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.created_at ? new Date(msg.created_at).getTime() : Date.now()
-      }))
-    }
-  } catch (e) {
-    console.error('Failed to load history:', e)
-  }
+  await loadHistory()
 
-  wsClient._on('open', () => { wsConnected.value = true })
-  wsClient._on('close', () => { wsConnected.value = false })
-  wsClient._on('max_reconnect', () => { wsConnected.value = false })
+  wsClient.on('open', () => {
+    wsConnected.value = true
+    reconnectCount.value = 0
+    loadHistory()
+  })
+  wsClient.on('close', () => { wsConnected.value = false })
+  wsClient.on('max_reconnect', () => {
+    wsConnected.value = false
+    wsError.value = 'Unable to connect to server, please refresh the page'
+    if (wsErrorTimer) clearTimeout(wsErrorTimer)
+    wsErrorTimer = null
+  })
+  wsClient.on('reconnect', (data) => { reconnectCount.value = data.attempt })
 
   wsClient.on('chat_response', handleChatResponse)
   wsClient.on('error', handleError)
@@ -143,9 +192,17 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  wsClient.off('open')
+  wsClient.off('close')
+  wsClient.off('max_reconnect')
+  wsClient.off('reconnect')
   wsClient.off('chat_response')
   wsClient.off('error')
   wsClient.disconnect()
+  if (wsErrorTimer) {
+    clearTimeout(wsErrorTimer)
+    wsErrorTimer = null
+  }
 })
 </script>
 
@@ -223,6 +280,20 @@ onUnmounted(() => {
   font-size: 16px;
 }
 
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .streaming-indicator {
   display: flex;
   align-items: center;
@@ -252,5 +323,51 @@ onUnmounted(() => {
     transform: scale(1);
     opacity: 1;
   }
+}
+
+.ws-status-bar {
+  flex-shrink: 0;
+}
+
+.ws-error-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.25);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ws-error-bar:hover {
+  background: rgba(239, 68, 68, 0.18);
+}
+
+.ws-error-text {
+  font-size: 14px;
+  color: #b91c1c;
+  line-height: 1.4;
+}
+
+.ws-error-close {
+  font-size: 20px;
+  color: #b91c1c;
+  margin-left: 12px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.ws-error-close:hover {
+  opacity: 1;
+}
+
+.ws-reconnect-bar {
+  padding: 6px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.1);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
 }
 </style>

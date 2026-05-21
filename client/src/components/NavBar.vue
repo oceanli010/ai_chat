@@ -5,6 +5,7 @@
     </div>
     <div class="navbar-links">
       <router-link to="/chat" class="nav-link">聊天</router-link>
+      <router-link to="/settings" class="nav-link">设置</router-link>
       <router-link v-if="userStore.isAdmin" to="/admin" class="nav-link">管理</router-link>
     </div>
     <div class="navbar-user">

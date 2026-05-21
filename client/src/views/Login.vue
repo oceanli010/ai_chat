@@ -25,24 +25,31 @@
             autocomplete="current-password"
           />
         </div>
+        <div v-if="successMsg" class="success-message">{{ successMsg }}</div>
         <div v-if="error" class="error-message">{{ error }}</div>
         <button type="submit" class="btn btn-primary" :disabled="loading">
           {{ loading ? '登录中...' : '登录' }}
         </button>
       </form>
-      <p class="auth-switch">
-        还没有账号？<router-link to="/register">立即注册</router-link>
-      </p>
+      <div class="auth-links">
+        <p class="auth-switch">
+          还没有账号？<router-link to="/register">立即注册</router-link>
+        </p>
+        <p class="auth-switch">
+          <router-link to="/forgot-password" class="forgot-link">忘记密码？</router-link>
+        </p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const form = reactive({
@@ -51,9 +58,29 @@ const form = reactive({
 })
 const loading = ref(false)
 const error = ref('')
+const successMsg = ref('')
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+onMounted(() => {
+  if (route.query.reset === '1') {
+    successMsg.value = '密码重置成功，请使用新密码登录'
+  }
+})
 
 async function handleLogin() {
   error.value = ''
+
+  if (!form.email || !emailRegex.test(form.email)) {
+    error.value = '请输入有效的邮箱地址'
+    return
+  }
+
+  if (!form.password) {
+    error.value = '请输入密码'
+    return
+  }
+
   loading.value = true
   try {
     await userStore.login(form.email, form.password)
@@ -172,5 +199,27 @@ async function handleLogin() {
 
 .auth-switch a:hover {
   text-decoration: underline;
+}
+
+.success-message {
+  padding: 10px 12px;
+  background: #f0fdf4;
+  color: #16a34a;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.auth-links {
+  margin-top: 24px;
+}
+
+.forgot-link {
+  color: #888 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+
+.forgot-link:hover {
+  color: #666 !important;
 }
 </style>

@@ -92,10 +92,43 @@ class WebSocketClient {
 
   on(type, handler) {
     this._handlers.set(type, handler)
+    this.addEventListener(type, handler)
   }
 
   off(type) {
     this._handlers.delete(type)
+    this.removeEventListener(type)
+  }
+
+  /**
+   * Public: register event listeners (same event system as _on)
+   */
+  addEventListener(eventType, handler) {
+    if (!this._eventHandlers) {
+      this._eventHandlers = new Map()
+    }
+    if (!this._eventHandlers.has(eventType)) {
+      this._eventHandlers.set(eventType, [])
+    }
+    this._eventHandlers.get(eventType).push(handler)
+  }
+
+  /**
+   * Public: remove event listeners.
+   * If handler is provided, remove only that specific handler;
+   * otherwise remove all handlers for the given event type.
+   */
+  removeEventListener(eventType, handler) {
+    if (!this._eventHandlers || !this._eventHandlers.has(eventType)) return
+    if (handler) {
+      const handlers = this._eventHandlers.get(eventType)
+      const index = handlers.indexOf(handler)
+      if (index !== -1) {
+        handlers.splice(index, 1)
+      }
+    } else {
+      this._eventHandlers.delete(eventType)
+    }
   }
 
   _on(eventType, handler) {
@@ -122,6 +155,7 @@ class WebSocketClient {
       return
     }
     this._reconnectAttempts++
+    this._emit('reconnect', { attempt: this._reconnectAttempts, max: this._maxReconnectAttempts })
     this._reconnectTimer = setTimeout(() => {
       this._connect()
     }, this._reconnectDelay)

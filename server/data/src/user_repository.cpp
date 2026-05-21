@@ -259,3 +259,33 @@ bool UserRepository::updateNickname(const std::string& userId, const std::string
     
     return false;
 }
+
+bool UserRepository::updatePassword(const std::string& userId, const std::string& newPasswordHash) {
+    LOG_INFO("UserRepository::updatePassword: {}", userId);
+    
+    if (!pool_) {
+        LOG_ERROR("Connection pool is null");
+        return false;
+    }
+    
+    auto conn = pool_->acquire();
+    if (!conn) {
+        LOG_ERROR("Failed to get connection");
+        return false;
+    }
+    
+    try {
+        std::string query = "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?";
+        auto stmt = conn->prepareStatement(query);
+        stmt->setString(1, newPasswordHash);
+        stmt->setInt64(2, std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count());
+        stmt->setString(3, userId);
+        
+        return stmt->executeUpdate() > 0;
+    } catch (const std::exception& e) {
+        LOG_ERROR("UserRepository::updatePassword error: {}", e.what());
+    }
+    
+    return false;
+}

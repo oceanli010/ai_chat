@@ -10,4 +10,7 @@ public:
     nlohmann::json getProfile(const std::string& token);
     nlohmann::json updateNickname(const std::string& token, const std::string& nickname);
     nlohmann::json deleteAccount(const std::string& token);
+    nlohmann::json forgotPassword(const std::string& email);
+    nlohmann::json resetPassword(const std::string& email, const std::string& code, const std::string& newPassword);
+    nlohmann::json changePassword(const std::string& token, const std::string& oldPassword, const std::string& newPassword);
 };

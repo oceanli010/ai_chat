@@ -14,3 +14,30 @@
 - 前端使用HTML实现，可使用合适的前端框架
 - 主要开发语言为C++
 
+客户端启动：
+
+```shellscript
+# 开发模式（热更新，自动代理 API 到 8080）
+cd client && npm run dev
+
+# 生产构建
+cd client && npm run build
+```
+
+服务端启动：
+
+```shellscript
+cd /home/oceanli/CLionProjects/ai_chat
+
+./start.sh start        # 构建 + 检查依赖 + 启动服务（后台运行）
+./start.sh stop         # 停止服务（优雅关闭）
+./start.sh restart      # 重启服务
+./start.sh status       # 查看服务运行状态
+./start.sh build        # 仅构建项目
+./start.sh init-db      # 仅初始化数据库
+./start.sh help         # 查看帮助信息
+
+# 使用自定义配置文件启动
+./start.sh start ./my_config.conf
+```
+

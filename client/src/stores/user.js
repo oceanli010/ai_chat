@@ -28,8 +28,8 @@ export const useUserStore = defineStore('user', () => {
     return result
   }
 
-  async function register(email, password, nickname) {
-    return await api.auth.register(email, password, nickname)
+  async function register(email) {
+    return await api.auth.register(email)
   }
 
   async function verifyEmail(email, code, nickname, password) {
