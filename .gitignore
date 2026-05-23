@@ -1,0 +1,52 @@
+# === Build ===
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+ai_chat_server
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+.clangd
+.claude/
+.trae/
+
+# === Logs ===
+logs/
+*.log
+
+# === Config (contains sensitive credentials) ===
+config/config.json
+config/*.json
+!config/config.example.json
+
+# === Dependencies ===
+deps_cache/
+vcpkg-overlay/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === Temp ===
+/tmp/
+/temp/
+*.tmp

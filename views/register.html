@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI聊天室 - 注册</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="auth-container">
+        <h1>AI 聊天室</h1>
+        <p class="subtitle">创建你的账号，开始与AI对话</p>
+        <form id="registerForm">
+            <div class="form-group">
+                <label>邮箱</label>
+                <div class="form-row">
+                    <input type="email" id="email" placeholder="请输入邮箱地址" required autocomplete="email">
+                    <button type="button" class="btn-send-code" id="sendCodeBtn" onclick="sendVerifyCode()">发送验证码</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>验证码</label>
+                <input type="text" id="code" placeholder="请输入6位验证码" required maxlength="6">
+            </div>
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="username" placeholder="3-50位字母、数字、下划线" required maxlength="50">
+                <small style="color:#888;font-size:12px;">仅支持字母、数字、下划线，3-50位</small>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" placeholder="6-128位密码" required minlength="6" maxlength="128">
+            </div>
+            <div class="form-group">
+                <label>确认密码</label>
+                <input type="password" id="confirm_password" placeholder="请再次输入密码" required>
+            </div>
+            <button type="submit" class="btn-primary">注册</button>
+        </form>
+        <div class="links">
+            <a href="/login.html">已有账号？立即登录</a>
+        </div>
+    </div>
+    <script src="/js/app.js"></script>
+    <script>
+        var sendCooldown = 0;
+
+        async function sendVerifyCode() {
+            if (sendCooldown > 0) return;
+
+            var email = document.getElementById('email').value.trim();
+            if (!email) {
+                showToast('请先输入邮箱地址', 'warning');
+                return;
+            }
+
+            var emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!emailRegex.test(email)) {
+                showToast('请输入有效的邮箱地址', 'error');
+                return;
+            }
+
+            var btn = document.getElementById('sendCodeBtn');
+            btn.disabled = true;
+
+            try {
+                var checkRes = await api('POST', '/api/auth/check-email', { email: email });
+                if (checkRes.code === 200 && checkRes.data && checkRes.data.registered) {
+                    showToast('该邮箱已注册，请直接登录或使用其他邮箱注册', 'error');
+                    btn.disabled = false;
+                    return;
+                }
+            } catch (err) {
+                // continue even if check fails
+            }
+
+            try {
+                var res = await api('POST', '/api/auth/send-code', {
+                    email: email,
+                    type: 'register'
+                });
+
+                if (res.code === 200) {
+                    showToast('验证码已发送，请检查邮箱（如未收到请查看垃圾邮件）', 'success');
+                    sendCooldown = 60;
+                    countdown();
+                } else {
+                    showToast(res.message, 'error');
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                showToast('网络错误，请稍后重试', 'error');
+                btn.disabled = false;
+            }
+        }
+
+        function countdown() {
+            var btn = document.getElementById('sendCodeBtn');
+            if (sendCooldown > 0) {
+                btn.textContent = sendCooldown + 's 后重新发送';
+                sendCooldown--;
+                setTimeout(countdown, 1000);
+            } else {
+                btn.textContent = '发送验证码';
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            var email = document.getElementById('email').value.trim();
+            var code = document.getElementById('code').value.trim();
+            var username = document.getElementById('username').value.trim();
+            var password = document.getElementById('password').value;
+            var confirmPassword = document.getElementById('confirm_password').value;
+
+            if (!email || !code || !username || !password) {
+                showToast('请填写所有字段', 'warning');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showToast('两次输入的密码不一致', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showToast('密码至少需要6位', 'error');
+                return;
+            }
+
+            if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+                showToast('请输入6位数字验证码', 'error');
+                return;
+            }
+
+            var usernameRegex = /^[a-zA-Z0-9_]+$/;
+            if (!usernameRegex.test(username) || username.length < 3) {
+                showToast('用户名仅支持字母、数字、下划线，至少3位', 'error');
+                return;
+            }
+
+            try {
+                var res = await api('POST', '/api/auth/register', {
+                    email: email,
+                    username: username,
+                    password: password,
+                    code: code
+                });
+
+                if (res.code === 200) {
+                    showToast('注册成功！即将跳转到登录页', 'success');
+                    setTimeout(() => { window.location.href = '/login.html'; }, 1500);
+                } else {
+                    showToast(res.message, 'error');
+                }
+            } catch (err) {
+                showToast('网络错误，请稍后重试', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

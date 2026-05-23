@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>AI聊天室 - 登录</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="auth-container">
+        <h1>AI 聊天室</h1>
+        <p class="subtitle">欢迎回来，请登录你的账号</p>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="username" placeholder="请输入用户名或邮箱" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" placeholder="请输入密码" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn-primary" id="loginBtn">登录</button>
+        </form>
+        <div class="links">
+            <a href="/register.html">还没有账号？立即注册</a>
+            <span style="margin: 0 8px;">|</span>
+            <a href="/reset_password.html">忘记密码？</a>
+        </div>
+    </div>
+
+    <div class="modal" id="banModal">
+        <div class="modal-content" style="border:2px solid #f44336;max-width:400px;padding:20px;">
+            <h3 style="color:#f44336;text-align:center;font-size:18px;margin-bottom:12px;" id="banTitle">账号已被封禁</h3>
+            <div id="banInfo" style="line-height:1.6;">
+                <p style="margin-bottom:10px;font-size:14px;">你的账号已被封禁，如有疑问请联系管理员</p>
+                <p id="banExpiryText" style="padding:8px 12px;border-radius:6px;font-size:13px;"></p>
+                <p id="banReasonText" style="padding:8px 12px;border-radius:6px;margin-top:6px;font-size:13px;"></p>
+            </div>
+            <div class="modal-footer" style="justify-content:center;margin-top:14px;">
+                <button class="btn-sm" style="min-width:100px;background:var(--primary-gradient);color:#fff;" onclick="closeBanModal()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            var username = document.getElementById('username').value.trim();
+            var password = document.getElementById('password').value.trim();
+
+            if (!username || !password) {
+                showToast('请填写用户名和密码', 'warning');
+                return;
+            }
+
+            var btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+
+            try {
+                var res = await api('POST', '/api/auth/login', {
+                    username: username,
+                    password: password
+                });
+
+                if (res.code === 200) {
+                    localStorage.setItem('token', res.data.token);
+                    localStorage.setItem('user_id', res.data.user_id);
+                    localStorage.setItem('username', res.data.username);
+                    localStorage.setItem('role', res.data.role);
+
+                    if (res.data.role === 'admin') {
+                        window.location.href = '/admin.html';
+                    } else {
+                        window.location.href = '/index.html';
+                    }
+                } else if (res.code === 403 && res.data && res.data.banned) {
+                    showBanModal(res.data);
+                } else if (res.code === 490 && res.data && res.data.pending_deletion) {
+                    showCoolingModal(res.data);
+                } else {
+                    showToast(res.message, 'error');
+                }
+            } catch (err) {
+                showToast('网络错误，请稍后重试', 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = '登录';
+        });
+
+        function showBanModal(data) {
+            var reason = data.ban_reason || '违反平台规则';
+            var seconds = data.remaining_seconds || 0;
+
+            var expiryText = '封禁结束时间：';
+            if (seconds <= 0) {
+                expiryText += '永久封禁';
+            } else {
+                var now = new Date();
+                now.setSeconds(now.getSeconds() + seconds);
+                var y = now.getFullYear();
+                var m = String(now.getMonth() + 1).padStart(2, '0');
+                var d = String(now.getDate()).padStart(2, '0');
+                var hh = String(now.getHours()).padStart(2, '0');
+                var mm = String(now.getMinutes()).padStart(2, '0');
+                var ss = String(now.getSeconds()).padStart(2, '0');
+                expiryText += y + '-' + m + '-' + d + ' ' + hh + ':' + mm + ':' + ss;
+            }
+
+            document.getElementById('banExpiryText').textContent = expiryText;
+            document.getElementById('banReasonText').innerHTML = '<strong>封禁理由：</strong>' + escapeHtml(reason);
+            document.getElementById('banTitle').textContent = '账号已被封禁';
+            document.getElementById('banModal').classList.add('show');
+        }
+
+        function closeBanModal() {
+            document.getElementById('banModal').classList.remove('show');
+        }
+
+        function showCoolingModal(data) {
+            var modal = document.getElementById('banModal');
+            var content = modal.querySelector('.modal-content');
+            modal.id = 'coolingModal';
+            content.innerHTML = '' +
+                '<h3 style="color:#ff9800;text-align:center;font-size:18px;margin-bottom:12px;">⏳ 账号注销冷静期</h3>' +
+                '<div style="line-height:1.8;margin:12px 0;">' +
+                '<p style="margin-bottom:10px;font-size:14px;">你的账号已提交注销申请，现在处于24小时冷静期内。</p>' +
+                '<p style="margin-bottom:10px;font-size:14px;">选择"继续登录"将取消注销流程，3天内无法再次申请注销。</p>' +
+                '</div>' +
+                '<div class="modal-footer" style="justify-content:center;gap:16px;">' +
+                '  <button class="btn-sm" style="min-width:130px;background:#ccc;color:#333;" onclick="cancelCooling()">取消登录</button>' +
+                '  <button class="btn-sm" style="min-width:130px;background:var(--primary-gradient);color:#fff;" onclick="confirmCoolingLogin()">继续登录</button>' +
+                '</div>';
+            modal.classList.add('show');
+        }
+
+        async function confirmCoolingLogin() {
+            document.getElementById('coolingModal').classList.remove('show');
+            var username = document.getElementById('username').value.trim();
+            var password = document.getElementById('password').value.trim();
+            try {
+                var res = await fetch(API_BASE + '/api/user/cancel-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username, password: password })
+                }).then(function(r) { return r.json(); });
+                if (res.code === 200) {
+                    showToast('注销已取消，请重新登录', 'success');
+                    setTimeout(function() { location.reload(); }, 1500);
+                } else {
+                    showToast(res.message, 'error');
+                }
+            } catch (e) {
+                showToast('操作失败', 'error');
+            }
+        }
+
+        async function cancelCooling() {
+            document.getElementById('coolingModal').classList.remove('show');
+            window.location.href = '/login.html';
+        }
+
+        window.addEventListener('storage', function(e) {
+            if ((e.key === 'token' && !e.newValue) || e.key === 'logout') {
+                localStorage.clear();
+                window.location.href = '/login.html';
+            }
+        });
+    </script>
+</body>
+</html>

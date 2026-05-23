@@ -1,0 +1,49 @@
+{
+  "server": {
+    "port": 8443,
+    "https_cert": "config/server.crt",
+    "https_key": "config/server.key",
+    "thread_num": 4,
+    "document_root": "views",
+    "home_page": "login.html"
+  },
+  "database": {
+    "mysql": {
+      "host": "127.0.0.1",
+      "port": 3306,
+      "user": "root",
+      "password": "",
+      "database": "ai_chat",
+      "pool_size": 10
+    },
+    "redis": {
+      "host": "127.0.0.1",
+      "port": 6379,
+      "password": "",
+      "db": 0,
+      "pool_size": 5
+    }
+  },
+  "email": {
+    "smtp_host": "smtp.example.com",
+    "smtp_port": 465,
+    "username": "",
+    "password": "",
+    "from_address": ""
+  },
+  "ai": {
+    "api_url": "https://api.openai.com",
+    "api_key": "",
+    "model": "gpt-3.5-turbo"
+  },
+  "admin": {
+    "username": "admin",
+    "password": ""
+  },
+  "log": {
+    "level": "info",
+    "file": "logs/server.log",
+    "max_size": 10485760,
+    "max_files": 7
+  }
+}
