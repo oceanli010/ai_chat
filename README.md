@@ -1,113 +1,146 @@
-# AI 聊天室
+# AI Chat Room
 
-一个基于 C++ (Drogon) + MySQL + Redis 的高并发 AI 聊天服务器。支持用户注册登录、AI 对话、个人中心、管理员后台等功能。
+A high-performance, real-time AI chat server built with modern C++ (Drogon framework), MySQL, and Redis. Features user authentication, AI-powered conversations, admin management, WebSocket-based push notifications, and a built-in ban/kick system.
 
-## 技术栈w
+## Features
 
-| 组件   | 技术             | 用途                   |
-| ---- | -------------- | -------------------- |
-| 后端框架 | Drogon         | 高性能异步 HTTP/HTTPS 服务器 |
-| 数据库  | MySQL          | 用户信息、聊天记录持久化存储       |
-| 缓存   | Redis          | 验证码、会话 Token、在线状态    |
-| 日志   | spdlog         | 文件+控制台双重日志输出         |
-| 认证   | JWT            | 用户身份认证 Token         |
-| 前端   | 原生 HTML/CSS/JS | 由 Drogon 直接提供服务      |
+- **User System**: Email-based registration, login, password reset, account deletion with 24-hour cooling-off period
+- **AI Chat**: Integration with OpenAI / DeepSeek / compatible APIs for intelligent conversations
+- **Admin Dashboard**: User management (search, ban/unban, force delete), server statistics, log viewer
+- **Notification Push**: WebSocket-based real-time ban notifications, push to connected clients
+- **Security**: JWT authentication, salted password hashing (SHA-256 + 32-byte salt), parameterized SQL queries, HTTPS support
+- **Rate Limiting**: Input validation on both client and server sides
+- **Auto Cleanup**: Scheduled cleanup of old chat messages (30 days) and expired verification codes (every 60s)
 
-## 项目结构
+## Tech Stack
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| Backend Framework | [Drogon](https://github.com/drogonframework/drogon) 1.9+ | High-performance async HTTP/HTTPS + WebSocket server |
+| Database | MySQL 8.0+ | Persistent storage for users, messages, logs |
+| Cache | Redis 6.0+ | Session tokens, online status, rate limiting |
+| Logging | [spdlog](https://github.com/gabime/spdlog) | Multi-level file + console logging with rotation |
+| Authentication | JWT (custom, HS256) | Stateless token-based auth (7-day expiry) |
+| AI Integration | REST API | OpenAI / DeepSeek compatible chat completions |
+| Email | SMTP (via curl) | Verification codes, account notifications |
+| Frontend | Vanilla HTML/CSS/JS | Served directly by Drogon, no build tools needed |
+
+## Requirements
+
+- **Compiler**: GCC 8+ or Clang 10+ (C++17 support required)
+- **Build System**: CMake 3.20+
+- **Databases**: MySQL 8.0+, Redis 6.0+
+- **SSL**: OpenSSL 1.1+
+- **Package Manager**: vcpkg (recommended for dependency management)
+
+### Dependencies
+
+| Dependency | Installation |
+|-----------|-------------|
+| Drogon (with MySQL + Redis) | `vcpkg install drogon[mysql,redis]` |
+| spdlog | `apt install libspdlog-dev` or `vcpkg install spdlog` |
+| nlohmann-json | `apt install nlohmann-json3-dev` or `vcpkg install nlohmann-json` |
+| hiredis | `apt install libhiredis-dev` or `vcpkg install hiredis` |
+| MySQL Connector/C++ | `apt install libmysqlcppconn-dev` or `vcpkg install mysql-connector-cpp` |
+| OpenSSL | `apt install libssl-dev` |
+
+## Project Structure
 
 ```
 ai_chat/
-├── CMakeLists.txt              # 项目构建配置
+├── CMakeLists.txt                   # Build configuration
 ├── config/
-│   ├── config.json             # 服务器配置文件
-│   ├── server.crt              # HTTPS 证书（需生成）
-│   └── server.key              # HTTPS 私钥（需生成）
+│   ├── config.json                  # Server configuration (with credentials)
+│   ├── config.example.json          # Template configuration
+│   ├── server.crt                   # HTTPS certificate
+│   └── server.key                   # HTTPS private key
 ├── sql/
-│   └── init.sql                # 数据库初始化脚本
+│   └── init.sql                     # Database schema initialization
 ├── scripts/
-│   ├── setup_db.sh             # 数据库安装脚本
-│   └── gen_cert.sh             # 自签名证书生成脚本
+│   ├── setup_db.sh                  # Database setup script
+│   └── gen_cert.sh                  # Self-signed certificate generator
 ├── src/
-│   ├── main.cpp                # 程序入口
-│   ├── controllers/            # HTTP 请求控制器
-│   │   ├── AuthController.h    # 注册/登录/重置密码
-│   │   ├── ChatController.h    # AI 聊天
-│   │   ├── UserController.h    # 个人中心
-│   │   └── AdminController.h   # 管理员功能
-│   ├── database/               # 数据库访问层
-│   │   ├── MySQLClient.h       # MySQL 连接池
-│   │   └── RedisClient.h       # Redis 客户端
+│   ├── main.cpp                     # Entry point
+│   ├── controllers/
+│   │   ├── AuthController.h         # Authentication (register, login, reset password)
+│   │   ├── ChatController.h         # AI chat messaging
+│   │   ├── UserController.h         # User profile, account deletion
+│   │   ├── AdminController.h        # Admin operations (stats, users, bans, logs)
+│   │   └── NotificationController.h # WebSocket push notifications
+│   ├── database/
+│   │   ├── MySQLClient.h            # MySQL connection pool
+│   │   └── RedisClient.h            # Redis client
 │   ├── middleware/
-│   │   └── AuthMiddleware.h    # JWT 认证中间件
+│   │   └── AuthMiddleware.h         # JWT authentication middleware
 │   ├── models/
-│   │   ├── User.h              # 用户模型
-│   │   └── ChatMessage.h       # 聊天消息模型
+│   │   ├── User.h                   # User data model
+│   │   └── ChatMessage.h            # Chat message model
 │   └── utils/
-│       ├── Logger.h            # spdlog 日志封装
-│       ├── JWTUtils.h          # JWT 工具
-│       ├── PasswordHasher.h    # 加盐哈希
-│       ├── IDGenerator.h       # 雪花算法 ID 生成器
-│       ├── EmailSender.h       # SMTP 邮件发送
-│       └── Validator.h         # 输入验证
-├── views/                      # 前端页面
-│   ├── login.html              # 登录页
-│   ├── register.html           # 注册页
-│   ├── reset_password.html     # 重置密码
-│   ├── index.html              # 主页面（聊天+个人中心）
-│   ├── admin.html              # 管理员后台
-│   ├── css/style.css           # 全局样式
-│   └── js/app.js               # 全局工具函数
-├── start.sh                    # 一键启动脚本
-└── README.md
+│       ├── Logger.h                 # spdlog wrapper
+│       ├── JWTUtils.h               # JWT token utilities
+│       ├── PasswordHasher.h         # Password hashing (SHA-256 + salt)
+│       ├── IDGenerator.h            # Snowflake-style ID generator
+│       ├── EmailSender.h            # SMTP email sender
+│       └── Validator.h              # Input validation helpers
+├── views/
+│   ├── login.html                   # Login page
+│   ├── register.html                # Registration page
+│   ├── reset_password.html          # Password reset page
+│   ├── index.html                   # Main app (chat + profile)
+│   ├── admin.html                   # Admin dashboard
+│   ├── css/style.css                # Global stylesheet
+│   └── js/app.js                    # Shared utilities (toast, API, WebSocket)
+├── start.sh                         # One-click build & start script
+├── .gitignore                       # Git ignore rules
+├── LICENSE                          # MIT License
+└── README.md                        # This file
 ```
 
-## 环境要求
+## Quick Start
 
-- **编译器**: GCC 8+ 或 Clang 10+（需支持 C++17）
-- **CMake**: 3.20+
-- **MySQL**: 8.0+
-- **Redis**: 6.0+
-- **OpenSSL**: 1.1+
-
-## 快速开始
-
-### 第一步：安装系统依赖
+### 1. Install System Dependencies
 
 ```bash
-# Ubuntu/Debian
+# Ubuntu / Debian
 sudo apt update
 sudo apt install -y build-essential cmake git libssl-dev \
     libmysqlcppconn-dev mysql-server mysql-client \
-    redis-server libhiredis-dev nlohmann-json3-dev
+    redis-server libhiredis-dev nlohmann-json3-dev libspdlog-dev \
+    curl
 
-# 启动 MySQL 和 Redis
+# Install vcpkg (if not already installed)
+git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
+~/vcpkg/bootstrap-vcpkg.sh
+~/vcpkg/vcpkg install drogon[mysql,redis] spdlog nlohmann-json hiredis
+
+# Start services
 sudo systemctl start mysql
 sudo systemctl start redis
 ```
 
-### 第二步：初始化数据库
+### 2. Initialize Database
 
 ```bash
-# 方式一：使用脚本（默认 root 用户，无密码）
+# Option A: Use setup script
 bash scripts/setup_db.sh
 
-# 方式二：手动导入
+# Option B: Manual import
 mysql -u root -p < sql/init.sql
 ```
 
-### 第三步：生成 HTTPS 自签名证书
+### 3. Generate HTTPS Certificate (Optional)
+
+For local development, you can use the self-signed certificate generator:
 
 ```bash
 bash scripts/gen_cert.sh
 ```
 
-此命令会在 `config/` 目录下生成 `server.crt` 和 `server.key`。
+For production, replace `config/server.crt` and `config/server.key` with CA-signed certificates.
 
-生产环境请替换为正规 CA 签发的证书。
+### 4. Configure
 
-### 第四步：修改配置文件
-
-编辑 `config/config.json`，至少配置以下项：
+Edit `config/config.json` with your settings:
 
 ```json
 {
@@ -117,108 +150,143 @@ bash scripts/gen_cert.sh
     "from_address": "your_email@qq.com"
   },
   "ai": {
-    "api_key": "your_openai_api_key"
+    "api_key": "your_openai_or_deepseek_api_key",
+    "api_url": "https://api.deepseek.com",
+    "model": "deepseek-chat"
+  },
+  "admin": {
+    "username": "admin_oceanli",
+    "password": "admim1005"
   }
 }
 ```
 
-> 若不配置邮箱，验证码会打印在服务器日志中，仍可正常使用。
+> **Note**: Email is optional. Without it, verification codes are printed to the server log.
+> **Note**: AI API key is optional. Without it, the AI will respond with a "not configured" message.
 
-> 若不配置 AI API Key，AI 回复将提示未配置。
-
-### 第五步：编译与运行
+### 5. Build & Run
 
 ```bash
-# 方式一：使用启动脚本（自动编译 + 运行）
+# One-click build and start
 bash start.sh
 
-# 方式二：手动编译
+# Or manually:
 mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake .. -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
+         -DCMAKE_BUILD_TYPE=Release
 cmake --build . -j$(nproc)
 cd ..
-
-# 运行
 ./build/ai_chat_server config/config.json
 ```
 
-### 第六步：访问
+### 6. Access
 
-打开浏览器访问：
+Open your browser to:
 
 ```
-https://localhost
+https://localhost:8443
 ```
 
-## 页面导航
+## Pages
 
-| 页面   | 路径                     | 说明                |
-| ---- | ---------------------- | ----------------- |
-| 登录页  | `/login.html`          | 用户登录              |
-| 注册页  | `/register.html`       | 邮箱注册              |
-| 重置密码 | `/reset_password.html` | 邮箱验证重置密码          |
-| 主页面  | `/index.html`          | 聊天 + 个人中心（需登录）    |
-| 管理后台 | `/admin.html`          | 管理员管理（需 admin 登录） |
+| Page | URL | Description |
+|------|-----|-------------|
+| Login | `/login.html` | User login |
+| Register | `/register.html` | Email-based registration |
+| Reset Password | `/reset_password.html` | Password reset via email |
+| Main App | `/index.html` | AI Chat + Profile (requires login) |
+| Admin | `/admin.html` | Admin dashboard (requires admin role) |
 
-## 管理员账号
+## Administration
 
-- **用户名**: `admin_oceanli`
-- **密码**: `admim1005`
+The admin account is automatically created on first server startup.
 
-首次启动服务器时会自动创建该管理员账号。
+- **Username**: `admin_oceanli`
+- **Password**: `admim1005`
 
-管理员登录后自动跳转到管理后台，可查看统计、管理用户、查看日志。
+Admin features available at `/admin.html`:
 
-## API 接口
+- **Dashboard**: View system statistics (total users, online users, total chats)
+- **User Management**: Search users, view details, ban/unban with configurable duration and reason, force delete accounts
+- **Server Logs**: View and filter application logs
 
-所有 API 返回 JSON 格式：`{"code": 200, "message": "success", "data": {...}}`
+### Ban/Unban Flow
 
-### 认证接口（无需登录）
+1. Admin bans a user → record stored in MySQL + Redis
+2. WebSocket notification pushed to the banned user in real-time
+3. Affected user sees a modal with ban reason and expiry time
+4. All subsequent API requests from the banned user are rejected by AuthMiddleware
+5. Admin can unban at any time
 
-| 方法   | 路径                         | 说明      |
-| ---- | -------------------------- | ------- |
-| POST | `/api/auth/send-code`      | 发送邮箱验证码 |
-| POST | `/api/auth/register`       | 注册账号    |
-| POST | `/api/auth/login`          | 登录      |
-| POST | `/api/auth/reset-password` | 重置密码    |
+## API Reference
 
-### 用户接口（需登录）
+All API responses follow the format:
 
-| 方法     | 路径                   | 说明       |
-| ------ | -------------------- | -------- |
-| GET    | `/api/user/profile`  | 获取个人信息   |
-| PUT    | `/api/user/profile`  | 修改用户名/昵称 |
-| PUT    | `/api/user/password` | 修改密码     |
-| DELETE | `/api/user/account`  | 注销账号     |
+```json
+{
+  "code": 200,
+  "message": "操作成功",
+  "data": { ... }
+}
+```
 
-### 聊天接口（需登录）
+### Authentication (Public)
 
-| 方法     | 路径                  | 说明     |
-| ------ | ------------------- | ------ |
-| GET    | `/api/chat/history` | 获取聊天记录 |
-| POST   | `/api/chat/send`    | 发送消息   |
-| DELETE | `/api/chat/clear`   | 清除聊天记录 |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/send-code` | Send email verification code |
+| POST | `/api/auth/verify-code` | Verify email code |
+| POST | `/api/auth/check-email` | Check email availability |
+| POST | `/api/auth/register` | Register new account |
+| POST | `/api/auth/login` | Login (returns JWT token) |
+| POST | `/api/auth/reset-password` | Reset password (requires verified code) |
 
-### 管理员接口（需 admin 角色）
+### User (Authenticated)
 
-| 方法   | 路径                  | 说明     |
-| ---- | ------------------- | ------ |
-| GET  | `/api/admin/stats`  | 获取统计信息 |
-| GET  | `/api/admin/users`  | 获取用户列表 |
-| POST | `/api/admin/search` | 搜索用户   |
-| POST | `/api/admin/ban`    | 封禁/解封  |
-| GET  | `/api/admin/logs`   | 查看日志   |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/user/profile` | Get user profile |
+| PUT | `/api/user/profile` | Update username/display name |
+| PUT | `/api/user/password` | Change password |
+| DELETE | `/api/user/account` | Delete account (requires verification code, 24h cooling-off) |
+| POST | `/api/user/cancel-delete` | Cancel pending deletion |
 
-## 配置说明
+### Chat (Authenticated)
 
-`config/config.json` 完整配置项：
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/chat/history` | Get chat history (paginated) |
+| POST | `/api/chat/send` | Send a message and get AI response |
+| DELETE | `/api/chat/clear` | Clear all chat history |
+
+### Admin (Requires admin role)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/stats` | Get system statistics |
+| GET | `/api/admin/users` | List users (paginated) |
+| POST | `/api/admin/search` | Search users by ID or username |
+| POST | `/api/admin/ban` | Ban or unban a user |
+| POST | `/api/admin/delete-user` | Force delete a user account |
+| GET | `/api/admin/logs` | View server logs (paginated) |
+
+### Notifications (Authenticated)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| WebSocket | `/ws/notification?token={jwt}` | Real-time notification connection |
+
+## Configuration Reference
+
+Full `config/config.json` structure:
 
 ```jsonc
 {
   "server": {
-    "port": 443,           // HTTPS 监听端口
-    "thread_num": 4,       // 工作线程数
-    "document_root": "views"  // 静态文件根目录
+    "port": 8443,              // HTTPS listen port
+    "thread_num": 4,           // Event loop thread count
+    "document_root": "views",  // Static file root
+    "home_page": "login.html"  // Default redirect
   },
   "database": {
     "mysql": {
@@ -227,7 +295,7 @@ https://localhost
       "user": "root",
       "password": "",
       "database": "ai_chat",
-      "pool_size": 10      // 连接池大小
+      "pool_size": 10
     },
     "redis": {
       "host": "127.0.0.1",
@@ -254,39 +322,106 @@ https://localhost
     "password": "admim1005"
   },
   "log": {
-    "level": "info",
-    "file": "logs/server.log",
-    "max_size": 10485760,    // 10MB 日志轮转
-    "max_files": 7
+    "level": "info",           // Log level: trace/debug/info/warn/error
+    "file": "logs/server.log", // Log file path
+    "max_size": 10485760,      // 10MB max per file
+    "max_files": 7             // Keep 7 rotated files
   }
 }
 ```
 
-## 安全特性
+> A template file `config/config.example.json` is provided with placeholder values.
 
-- **密码加密**: SHA-256 + 随机 32 字节盐值
-- **通信安全**: HTTPS (TLS)
-- **身份认证**: JWT Token（7天过期）
-- **账号防护**: 封禁状态检查
-- **输入验证**: 前后端双重校验
-- **SQL 防护**: 参数化查询防注入
-- **自动清理**: 30天聊天记录自动清除
-- **验证码安全**: 6位数字、5分钟过期、一次性使用
+## Database Schema
 
-## 常见问题
+The database `ai_chat` contains the following tables:
 
-### 1. 编译时找不到依赖
+| Table | Purpose |
+|-------|---------|
+| `users` | User accounts with hashed passwords, roles (user/admin), ban status |
+| `chat_messages` | Chat message history (user_id, role, content, token_count) |
+| `email_verifications` | Email verification codes (supports register + reset_password types) |
 
-确保已安装所有系统依赖。Drogon、spdlog、jwt-cpp 等库会自动通过 `FetchContent` 下载。
+Schema file: `sql/init.sql`
 
-### 2. MySQL 连接失败
+## Security Features
 
-检查 MySQL 服务是否运行，以及 `config.json` 中的数据库配置是否正确。
+- **Password Storage**: SHA-256 hash with 32-byte random salt per user
+- **Transport Security**: HTTPS with TLS encryption
+- **Authentication**: JWT tokens (7-day expiry, server-side session validation)
+- **Account Protection**: Ban system with configurable duration and reason, instant enforcement via API middleware
+- **Input Validation**: Length limits, format checks on both frontend and backend
+- **SQL Injection Prevention**: All queries use parameterized prepared statements
+- **XSS Prevention**: User content is HTML-escaped before rendering
+- **Automatic Cleanup**: Old chat messages (30 days), expired verification codes, and pending deletion accounts cleaned automatically every 60 seconds
 
-### 3. 验证码收不到邮件
+## Account Deletion Flow
 
-验证码同时会输出到服务器日志文件中。配置邮箱时注意 SMTP 授权码不是邮箱登录密码。
+1. User requests account deletion → verification code sent to email
+2. User enters code to confirm → account marked as `pending_deletion`
+3. 24-hour cooling-off period begins
+4. During cooling-off: login triggers prompt asking to cancel or proceed
+5. User can cancel deletion (then locked out for 3 days)
+6. After 24 hours, account is permanently deleted by cleanup task
+7. Admin can also force-delete any user account
 
-### 4. AI 回复提示"未配置"
+## Development
 
-在 `config.json` 的 `ai.api_key` 中填入你的 OpenAI API Key。
+### Building from Source
+
+```bash
+# Clean build
+rm -rf build && mkdir build && cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
+         -DCMAKE_BUILD_TYPE=Release
+cmake --build . -j$(nproc)
+```
+
+### Logging
+
+Logs are written to both console and file (`logs/server.log`). Log level can be configured in `config.json`. File rotation is configured with max size and file count.
+
+## Troubleshooting
+
+### Server won't start, port already in use
+
+```bash
+# Check what's using the port
+sudo lsof -i :8443
+
+# Kill the process
+sudo fuser -k 8443/tcp
+
+# Or use a different port
+sed -i 's/8443/9443/' config/config.json
+```
+
+### MySQL connection errors
+
+```
+[error] MySQL connection failed: Unknown database 'ai_chat'
+```
+
+Run the database initialization:
+
+```bash
+mysql -u root -p < sql/init.sql
+```
+
+### Verification codes not arriving
+
+Codes are logged to the server log as a fallback:
+
+```bash
+grep "验" logs/server.log
+```
+
+For email delivery, ensure SMTP settings are correct. QQ email requires an **authorization code** (not the account password).
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+For issues and feature requests, please open an issue on the project repository.
