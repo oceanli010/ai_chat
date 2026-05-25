@@ -50,3 +50,8 @@ Desktop.ini
 /tmp/
 /temp/
 *.tmp
+
+# Misc
+QUESTION.md
+STUDY.md
+nohup.out
