@@ -145,6 +145,10 @@ public:
 
     void changePassword(const HttpRequestPtr& req,
                          std::function<void(const HttpResponsePtr&)>&& callback) {
+        std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
+        auto attempts = RedisClient::instance().incr(rate_key);
+        if (attempts == 1) RedisClient::instance().expire(rate_key, 300);
+        if (attempts > 10) { auto resp = HttpResponse::newHttpResponse(); resp->setBody(generateError(429, "操作过于频繁，请稍后再试")); callback(resp); return; }
         auto json = req->getJsonObject();
         if (!json) {
             auto resp = HttpResponse::newHttpResponse();
@@ -196,6 +200,18 @@ public:
 
             MySQLClient::instance().release(std::move(conn));
 
+            // 密码修改成功后，使所有旧session失效
+            auto session_key = "user_sessions:" + std::to_string(user_id);
+            auto tokens = RedisClient::instance().smembers(session_key);
+            std::vector<std::string> keys;
+            keys.reserve(tokens.size());
+            for (const auto& t : tokens) {
+                keys.push_back("session:" + t);
+            }
+            RedisClient::instance().del_batch(keys);
+            RedisClient::instance().del(session_key);
+            RedisClient::instance().srem("online_users", std::to_string(user_id));
+
             auto resp = HttpResponse::newHttpResponse();
             resp->setBody(generateSuccess("密码修改成功"));
             callback(resp);
@@ -210,6 +226,10 @@ public:
 
     void deleteAccount(const HttpRequestPtr& req,
                         std::function<void(const HttpResponsePtr&)>&& callback) {
+        std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
+        auto attempts = RedisClient::instance().incr(rate_key);
+        if (attempts == 1) RedisClient::instance().expire(rate_key, 300);
+        if (attempts > 10) { auto resp = HttpResponse::newHttpResponse(); resp->setBody(generateError(429, "操作过于频繁，请稍后再试")); callback(resp); return; }
         auto json = req->getJsonObject();
         if (!json || !(*json)["code"].isString()) {
             auto resp = HttpResponse::newHttpResponse();
@@ -272,9 +292,12 @@ public:
 
             auto session_key = "user_sessions:" + std::to_string(user_id);
             auto tokens = RedisClient::instance().smembers(session_key);
+            std::vector<std::string> keys;
+            keys.reserve(tokens.size());
             for (const auto& t : tokens) {
-                RedisClient::instance().del("session:" + t);
+                keys.push_back("session:" + t);
             }
+            RedisClient::instance().del_batch(keys);
             RedisClient::instance().del(session_key);
 
             auto resp = HttpResponse::newHttpResponse();

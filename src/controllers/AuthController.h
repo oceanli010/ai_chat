@@ -20,58 +20,20 @@ class AuthController : public HttpController<AuthController> {
 public:
     METHOD_LIST_BEGIN
     ADD_METHOD_TO(AuthController::sendCode, "/api/auth/send-code", Post);
-    ADD_METHOD_TO(AuthController::checkEmail, "/api/auth/check-email", Post);
+
     ADD_METHOD_TO(AuthController::sendDeleteCode, "/api/auth/send-delete-code", Post);
     ADD_METHOD_TO(AuthController::registerUser, "/api/auth/register", Post);
     ADD_METHOD_TO(AuthController::login, "/api/auth/login", Post);
     ADD_METHOD_TO(AuthController::resetPassword, "/api/auth/reset-password", Post);
     METHOD_LIST_END
 
-    void checkEmail(const HttpRequestPtr& req,
-                    std::function<void(const HttpResponsePtr&)>&& callback) {
-        auto json = req->getJsonObject();
-        if (!json) {
-            auto resp = HttpResponse::newHttpResponse();
-            resp->setBody(generateError(400, "请求格式无效"));
-            callback(resp);
-            return;
-        }
-
-        std::string email = (*json)["email"].asString();
-        if (!Validator::is_valid_email(email)) {
-            auto resp = HttpResponse::newHttpResponse();
-            resp->setBody(generateError(400, "邮箱格式无效"));
-            callback(resp);
-            return;
-        }
-
-        try {
-            auto conn = MySQLClient::instance().acquire();
-            auto stmt = conn->prepareStatement(
-                "SELECT COUNT(*) FROM users WHERE email = ?");
-            stmt->setString(1, email);
-            auto res = stmt->executeQuery();
-            res->next();
-            int count = res->getInt(1);
-            MySQLClient::instance().release(std::move(conn));
-
-            Json::Value result;
-            result["code"] = 200;
-            result["data"]["registered"] = (count > 0);
-            result["message"] = "操作成功";
-            auto resp = HttpResponse::newHttpResponse();
-            resp->setBody(result.toStyledString());
-            callback(resp);
-        } catch (const std::exception& e) {
-            APP_LOG_ERROR("Check email error: {}", e.what());
-            auto resp = HttpResponse::newHttpResponse();
-            resp->setBody(generateError(500, "服务器错误"));
-            callback(resp);
-        }
-    }
 
     void sendCode(const HttpRequestPtr& req,
                   std::function<void(const HttpResponsePtr&)>&& callback) {
+        std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
+        auto attempts = RedisClient::instance().incr(rate_key);
+        if (attempts == 1) RedisClient::instance().expire(rate_key, 300);
+        if (attempts > 10) { auto resp = HttpResponse::newHttpResponse(); resp->setBody(generateError(429, "操作过于频繁，请稍后再试")); callback(resp); return; }
         auto json = req->getJsonObject();
         if (!json) {
             auto resp = HttpResponse::newHttpResponse();
@@ -99,7 +61,7 @@ public:
             email_sent = email_sender_->send_verification_code(email, code);
         }
 
-        APP_LOG_INFO("Verification code for {}: {} (email sent: {})", email, code, email_sent);
+        APP_LOG_INFO("Verification code for {}: {}** (email sent: {})", email, code.substr(0, 2), email_sent);
 
         auto resp = HttpResponse::newHttpResponse();
         resp->setBody(generateSuccess("验证码已发送"));
@@ -108,6 +70,10 @@ public:
 
     void sendDeleteCode(const HttpRequestPtr& req,
                          std::function<void(const HttpResponsePtr&)>&& callback) {
+        std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
+        auto attempts = RedisClient::instance().incr(rate_key);
+        if (attempts == 1) RedisClient::instance().expire(rate_key, 300);
+        if (attempts > 10) { auto resp = HttpResponse::newHttpResponse(); resp->setBody(generateError(429, "操作过于频繁，请稍后再试")); callback(resp); return; }
         auto auth = req->getHeader("Authorization");
         if (auth.substr(0, 7) == "Bearer ") auth = auth.substr(7);
 
@@ -135,7 +101,7 @@ public:
             if (email_sender_) {
                 email_sender_->send_delete_account_code(email, code);
             }
-            APP_LOG_INFO("Delete account verification code for {}: {} (email sent: {})", email, code, email_sender_ != nullptr);
+            APP_LOG_INFO("Delete account verification code for {}: {}** (email sent: {})", email, code.substr(0, 2), email_sender_ != nullptr);
 
             auto resp = HttpResponse::newHttpResponse();
             resp->setBody(generateSuccess("注销验证码已发送到注册邮箱"));
@@ -150,6 +116,10 @@ public:
 
     void registerUser(const HttpRequestPtr& req,
                        std::function<void(const HttpResponsePtr&)>&& callback) {
+        std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
+        auto attempts = RedisClient::instance().incr(rate_key);
+        if (attempts == 1) RedisClient::instance().expire(rate_key, 300);
+        if (attempts > 10) { auto resp = HttpResponse::newHttpResponse(); resp->setBody(generateError(429, "操作过于频繁，请稍后再试")); callback(resp); return; }
         auto json = req->getJsonObject();
         if (!json) {
             auto resp = HttpResponse::newHttpResponse();
@@ -248,6 +218,10 @@ public:
 
     void login(const HttpRequestPtr& req,
                 std::function<void(const HttpResponsePtr&)>&& callback) {
+        std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
+        auto attempts = RedisClient::instance().incr(rate_key);
+        if (attempts == 1) RedisClient::instance().expire(rate_key, 300);
+        if (attempts > 10) { auto resp = HttpResponse::newHttpResponse(); resp->setBody(generateError(429, "操作过于频繁，请稍后再试")); callback(resp); return; }
         auto json = req->getJsonObject();
         if (!json) {
             auto resp = HttpResponse::newHttpResponse();

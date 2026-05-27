@@ -1,11 +1,13 @@
 {
   "server": {
     "port": 8443,
+    "enable_https": true,
     "https_cert": "config/server.crt",
     "https_key": "config/server.key",
     "thread_num": 4,
     "document_root": "views",
-    "home_page": "login.html"
+    "home_page": "login.html",
+    "jwt_secret": ""
   },
   "database": {
     "mysql": {

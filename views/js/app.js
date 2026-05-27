@@ -106,7 +106,7 @@ function parseLogTime(line) {
 }
 
 function startPeriodicAuthCheck(intervalMs) {
-    intervalMs = intervalMs || 2000;
+    intervalMs = intervalMs || 30000;
     setInterval(async function() {
         if (!localStorage.getItem('token') || window._authChecking) return;
         if (document.getElementById('globalBanModal')) return;

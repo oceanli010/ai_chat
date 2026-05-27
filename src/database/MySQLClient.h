@@ -16,6 +16,8 @@
 #include <condition_variable>
 #include "utils/Logger.h"
 
+class ScopedConnection;
+
 class MySQLClient {
 public:
     static MySQLClient& instance() {
@@ -55,6 +57,18 @@ public:
         }
         auto conn = std::move(pool_.front());
         pool_.pop();
+
+        if (conn->isClosed()) {
+            conn = create_connection();
+            if (!conn) {
+                while (pool_.empty()) {
+                    cond_.wait(lock);
+                }
+                conn = std::move(pool_.front());
+                pool_.pop();
+            }
+        }
+
         return conn;
     }
 
@@ -65,6 +79,8 @@ public:
             cond_.notify_one();
         }
     }
+
+    static ScopedConnection acquireScoped();
 
     sql::Driver* get_driver() { return driver_; }
 
@@ -96,3 +112,32 @@ private:
     std::condition_variable cond_;
     std::queue<std::unique_ptr<sql::Connection>> pool_;
 };
+
+class ScopedConnection {
+public:
+    explicit ScopedConnection(std::unique_ptr<sql::Connection> conn) : conn_(std::move(conn)) {}
+
+    ~ScopedConnection() {
+        if (conn_) {
+            MySQLClient::instance().release(std::move(conn_));
+        }
+    }
+
+    sql::Connection* operator->() const { return conn_.get(); }
+    sql::Connection& operator*() const { return *conn_; }
+    sql::Connection* get() const { return conn_.get(); }
+
+    bool valid() const { return conn_ != nullptr && !conn_->isClosed(); }
+
+    ScopedConnection(const ScopedConnection&) = delete;
+    ScopedConnection& operator=(const ScopedConnection&) = delete;
+    ScopedConnection(ScopedConnection&&) noexcept = default;
+    ScopedConnection& operator=(ScopedConnection&&) noexcept = default;
+
+private:
+    std::unique_ptr<sql::Connection> conn_;
+};
+
+inline ScopedConnection MySQLClient::acquireScoped() {
+    return ScopedConnection(instance().acquire());
+}

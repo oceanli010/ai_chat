@@ -1,11 +1,14 @@
 #pragma once
 
 #include <string>
-#include <cstdio>
-#include <fstream>
+#include <mutex>
 #include <cstdlib>
 #include <chrono>
 #include <ctime>
+#include <algorithm>
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 #include "utils/Logger.h"
 
 class EmailSender {
@@ -19,7 +22,14 @@ public:
         , smtp_port_(smtp_port)
         , username_(username)
         , password_(password)
-        , from_address_(from_address) {}
+        , from_address_(from_address) {
+        static std::once_flag ssl_init_flag;
+        std::call_once(ssl_init_flag, []() {
+            SSL_library_init();
+            SSL_load_error_strings();
+            OpenSSL_add_all_algorithms();
+        });
+    }
 
     bool send_verification_code(const std::string& to_email,
                                  const std::string& code) {
@@ -58,68 +68,176 @@ private:
     bool send_email(const std::string& to,
                      const std::string& subject,
                      const std::string& body) {
-        char temp_file[] = "/tmp/ai_chat_email_XXXXXX";
-        int fd = mkstemp(temp_file);
-        if (fd < 0) {
-            APP_LOG_ERROR("Failed to create temp file for email");
+        SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
+        if (!ctx) {
+            APP_LOG_ERROR("Failed to create SSL context");
+            return false;
+        }
+
+        SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
+
+        if (smtp_port_ == 465) {
+            SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
+        }
+
+        BIO* bio = BIO_new_ssl_connect(ctx);
+        if (!bio) {
+            APP_LOG_ERROR("Failed to create SSL BIO");
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        SSL* ssl = nullptr;
+        BIO_get_ssl(bio, &ssl);
+        if (!ssl) {
+            APP_LOG_ERROR("Failed to get SSL object");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+
+        if (!smtp_host_.empty()) {
+            SSL_set_tlsext_host_name(ssl, smtp_host_.c_str());
+        }
+
+        std::string hostport = smtp_host_ + ":" + std::to_string(smtp_port_);
+        BIO_set_conn_hostname(bio, hostport.c_str());
+
+        if (BIO_do_connect(bio) <= 0) {
+            APP_LOG_ERROR("Failed to connect to SMTP server {}:{}", smtp_host_, smtp_port_);
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        APP_LOG_INFO("Sending email to {}...", to);
+
+        auto read_line = [bio]() -> std::string {
+            std::string line;
+            line.reserve(256);
+            char c;
+            while (line.size() < 8192) {
+                int ret = BIO_read(bio, &c, 1);
+                if (ret <= 0) {
+                    if (BIO_should_retry(bio)) continue;
+                    break;
+                }
+                line += c;
+                if (c == '\n') break;
+            }
+            return line;
+        };
+
+        auto send_data = [bio](const std::string& data) -> bool {
+            size_t sent = 0;
+            while (sent < data.size()) {
+                int ret = BIO_write(bio, data.data() + sent, static_cast<int>(data.size() - sent));
+                if (ret <= 0) {
+                    if (BIO_should_retry(bio)) continue;
+                    return false;
+                }
+                sent += static_cast<size_t>(ret);
+            }
+            BIO_flush(bio);
+            return true;
+        };
+
+        auto read_expected = [&](const std::string& expected) -> bool {
+            std::string resp;
+            while (true) {
+                resp = read_line();
+                if (resp.empty()) return false;
+
+                if (resp.size() >= 4 && resp[3] == '-') {
+                    continue;
+                }
+                return resp.size() >= 3 && resp.substr(0, 3) == expected;
+            }
+        };
+
+        if (!read_expected("220")) {
+            APP_LOG_ERROR("SMTP greeting failed or timed out");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        if (!send_data("EHLO ai_chat_server\r\n") || !read_expected("250")) {
+            APP_LOG_ERROR("EHLO failed");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        if (!send_data("AUTH LOGIN\r\n") || !read_expected("334")) {
+            APP_LOG_ERROR("AUTH LOGIN initiation failed");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        if (!send_data(base64_encode(username_) + "\r\n") || !read_expected("334")) {
+            APP_LOG_ERROR("AUTH LOGIN username failed");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        if (!send_data(base64_encode(password_) + "\r\n") || !read_expected("235")) {
+            APP_LOG_ERROR("AUTH LOGIN password failed");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        if (!send_data("MAIL FROM:<" + from_address_ + ">\r\n") || !read_expected("250")) {
+            APP_LOG_ERROR("MAIL FROM failed");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        if (!send_data("RCPT TO:<" + to + ">\r\n") || !read_expected("250")) {
+            APP_LOG_ERROR("RCPT TO failed");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
+            return false;
+        }
+
+        if (!send_data("DATA\r\n") || !read_expected("354")) {
+            APP_LOG_ERROR("DATA command failed");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
             return false;
         }
 
         std::string content =
-            "From: \"" + from_address_ + "\" <" + from_address_ + ">\r\n" +
-            "To: <" + to + ">\r\n" +
-            "Subject: =?UTF-8?B?" + base64_encode(subject) + "?=\r\n" +
-            "MIME-Version: 1.0\r\n" +
-            "Content-Type: text/plain; charset=UTF-8\r\n" +
-            "Content-Transfer-Encoding: 8bit\r\n" +
+            "From: \"" + from_address_ + "\" <" + from_address_ + ">\r\n"
+            "To: <" + to + ">\r\n"
+            "Subject: =?UTF-8?B?" + base64_encode(subject) + "?=\r\n"
+            "MIME-Version: 1.0\r\n"
+            "Content-Type: text/plain; charset=UTF-8\r\n"
+            "Content-Transfer-Encoding: 8bit\r\n"
             "\r\n" +
             body + "\r\n";
 
-        write(fd, content.c_str(), content.length());
-        close(fd);
-
-        std::string cmd =
-            "curl -s --ssl-reqd --max-time 30 "
-            "--login-options AUTH=LOGIN "
-            "--url 'smtps://" + smtp_host_ + ":" + std::to_string(smtp_port_) + "' "
-            "--user '" + escape_shell(username_) + ":" + escape_shell(password_) + "' "
-            "--mail-from '" + escape_shell(from_address_) + "' "
-            "--mail-rcpt '" + escape_shell(to) + "' "
-            "--upload-file '" + std::string(temp_file) + "' 2>&1";
-
-        APP_LOG_INFO("Sending email to {}...", to);
-
-        FILE* pipe = popen(cmd.c_str(), "r");
-        if (!pipe) {
-            APP_LOG_ERROR("Failed to execute curl for email");
-            unlink(temp_file);
+        if (!send_data(content) || !send_data("\r\n.\r\n") || !read_expected("250")) {
+            APP_LOG_ERROR("DATA content failed");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
             return false;
         }
 
-        char buf[1024];
-        std::string output;
-        while (fgets(buf, sizeof(buf), pipe)) {
-            output += buf;
-        }
-        int rc = pclose(pipe);
-        unlink(temp_file);
+        send_data("QUIT\r\n");
 
-        if (rc == 0) {
-            APP_LOG_INFO("Email sent successfully to {}", to);
-            return true;
-        } else {
-            APP_LOG_ERROR("Email send failed: {}", output);
-            return false;
-        }
-    }
+        APP_LOG_INFO("Email sent successfully to {}", to);
 
-    static std::string escape_shell(const std::string& s) {
-        std::string result;
-        for (char c : s) {
-            if (c == '\'') result += "'\\''";
-            else result += c;
-        }
-        return result;
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return true;
     }
 
     static std::string base64_encode(const std::string& input) {
@@ -127,12 +245,12 @@ private:
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
         std::string result;
-        int i = 0;
-        int j = 0;
         unsigned char char_array_3[3];
         unsigned char char_array_4[4];
-        int in_len = input.length();
-        const char* bytes_to_encode = input.c_str();
+        int in_len = static_cast<int>(input.length());
+        const unsigned char* bytes_to_encode =
+            reinterpret_cast<const unsigned char*>(input.data());
+        int i = 0;
 
         while (in_len--) {
             char_array_3[i++] = *(bytes_to_encode++);
@@ -151,7 +269,7 @@ private:
         }
 
         if (i) {
-            for (j = i; j < 3; j++) {
+            for (int j = i; j < 3; j++) {
                 char_array_3[j] = '\0';
             }
             char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
@@ -159,7 +277,7 @@ private:
                               ((char_array_3[1] & 0xf0) >> 4);
             char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) +
                               ((char_array_3[2] & 0xc0) >> 6);
-            for (j = 0; j < i + 1; j++) {
+            for (int j = 0; j < i + 1; j++) {
                 result += chars[char_array_4[j]];
             }
             while (i++ < 3) {

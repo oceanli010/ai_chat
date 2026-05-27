@@ -64,17 +64,6 @@
             btn.disabled = true;
 
             try {
-                var checkRes = await api('POST', '/api/auth/check-email', { email: email });
-                if (checkRes.code === 200 && checkRes.data && checkRes.data.registered) {
-                    showToast('该邮箱已注册，请直接登录或使用其他邮箱注册', 'error');
-                    btn.disabled = false;
-                    return;
-                }
-            } catch (err) {
-                // continue even if check fails
-            }
-
-            try {
                 var res = await api('POST', '/api/auth/send-code', {
                     email: email,
                     type: 'register'

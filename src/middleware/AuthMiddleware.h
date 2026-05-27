@@ -16,7 +16,7 @@ public:
         static const std::vector<std::string> public_paths = {
             "/api/auth/send-code",
             "/api/auth/verify-code",
-            "/api/auth/check-email",
+
             "/api/auth/send-delete-code",
             "/api/auth/register",
             "/api/auth/login",
@@ -36,6 +36,34 @@ public:
             if (path.find(pp) == 0) {
                 nextCb(std::move(mcb));
                 return;
+            }
+        }
+
+        auto method = req->method();
+        if (method == drogon::Post || method == drogon::Put || method == drogon::Delete) {
+            auto origin = req->getHeader("Origin");
+            if (!origin.empty()) {
+                auto host = req->getHeader("Host");
+                std::string origin_host;
+                size_t pos = origin.find("://");
+                if (pos != std::string::npos) {
+                    origin_host = origin.substr(pos + 3);
+                }
+                size_t port_pos = origin_host.find(':');
+                std::string origin_hostname = (port_pos != std::string::npos)
+                    ? origin_host.substr(0, port_pos) : origin_host;
+
+                size_t host_port_pos = host.find(':');
+                std::string host_hostname = (host_port_pos != std::string::npos)
+                    ? host.substr(0, host_port_pos) : host;
+
+                if (origin_hostname != host_hostname) {
+                    auto resp = drogon::HttpResponse::newHttpResponse();
+                    resp->setStatusCode(drogon::k403Forbidden);
+                    resp->setBody("{\"code\":403,\"message\":\"无效的请求来源\"}");
+                    mcb(resp);
+                    return;
+                }
             }
         }
 

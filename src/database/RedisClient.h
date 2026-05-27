@@ -92,6 +92,16 @@ public:
         return ok;
     }
 
+    void del_batch(const std::vector<std::string>& keys) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        redisCommand(context_, "MULTI");
+        for (const auto& key : keys) {
+            redisCommand(context_, "DEL %s", key.c_str());
+        }
+        redisReply* reply = (redisReply*)redisCommand(context_, "EXEC");
+        freeReplyObject(reply);
+    }
+
     long long incr(const std::string& key) {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* reply = (redisReply*)redisCommand(context_, "INCR %s", key.c_str());

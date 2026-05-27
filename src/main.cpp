@@ -1,6 +1,9 @@
 #include <drogon/drogon.h>
 #include <fstream>
 #include <iostream>
+#include <random>
+#include <sstream>
+#include <iomanip>
 #include "utils/Logger.h"
 #include "utils/JWTUtils.h"
 #include "database/MySQLClient.h"
@@ -140,7 +143,19 @@ int main(int argc, char* argv[]) {
 
     initAdminAccount(config);
 
-    JWTUtils::init("ai_chat_jwt_secret_key_2024");
+    auto jwt_secret = config["server"]["jwt_secret"].asString();
+    if (jwt_secret.empty()) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, 15);
+        std::stringstream ss;
+        for (int i = 0; i < 64; ++i) {
+            ss << std::hex << dis(gen);
+        }
+        jwt_secret = ss.str();
+        APP_LOG_WARN("jwt_secret is empty in config, using auto-generated random secret");
+    }
+    JWTUtils::init(jwt_secret);
 
     auto email_cfg = config["email"];
     if (!email_cfg["username"].asString().empty()) {
@@ -165,7 +180,14 @@ int main(int argc, char* argv[]) {
     scheduleCleanupTask();
 
     auto& server_cfg = config["server"];
-    app().addListener("0.0.0.0", server_cfg["port"].asInt());
+    bool use_https = server_cfg.isMember("enable_https") && server_cfg["enable_https"].asBool();
+    if (use_https) {
+        auto cert = server_cfg["https_cert"].asString();
+        auto key = server_cfg["https_key"].asString();
+        app().addListener("0.0.0.0", server_cfg["port"].asInt(), true, cert, key);
+    } else {
+        app().addListener("0.0.0.0", server_cfg["port"].asInt());
+    }
 
     app().setThreadNum(server_cfg["thread_num"].asInt());
 
@@ -179,7 +201,23 @@ int main(int argc, char* argv[]) {
     app().setLogPath("logs/");
     app().setLogLevel(trantor::Logger::kInfo);
 
-    APP_LOG_INFO("Server starting on port {}", server_cfg["port"].asInt());
+    app().registerPostHandlingAdvice([](const HttpRequestPtr& req, const HttpResponsePtr& resp) {
+        (void)req;
+        resp->addHeader("Content-Security-Policy",
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "form-action 'self'"
+        );
+    });
+
+    APP_LOG_INFO("Server starting on {}://0.0.0.0:{}",
+                 use_https ? "https" : "http",
+                 server_cfg["port"].asInt());
     APP_LOG_INFO("Document root: {}", server_cfg["document_root"].asString());
 
     app().run();

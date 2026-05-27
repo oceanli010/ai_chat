@@ -53,7 +53,7 @@ if pgrep -x ai_chat_server > /dev/null 2>&1; then
     echo ""
     echo "========================================"
     echo "  访问地址: http://localhost:8443"
-    echo "  登录账号: admin_oceanli / admim1005"
+    echo "  登录账号: 请查看配置文件获取账号信息"
     echo "========================================"
 else
     echo "      ❌ 启动失败，请检查日志"

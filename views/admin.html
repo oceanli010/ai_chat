@@ -369,7 +369,7 @@
             }
         });
 
-        startPeriodicAuthCheck(2000);
+        startPeriodicAuthCheck(30000);
 
         var userRefreshTimer = null;
 
@@ -378,7 +378,7 @@
             if (currentTab === 'users') {
                 userRefreshTimer = setInterval(function() {
                     loadAllUsers(currentPage);
-                }, 2000);
+                }, 15000);
             }
         }
 

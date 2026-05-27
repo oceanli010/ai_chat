@@ -163,12 +163,12 @@ public:
                 query = "SELECT id, username, email, status, total_chats, "
                         "created_at, ban_expires_at, ban_reason FROM users WHERE username LIKE ? AND role = 'user' LIMIT 50";
                 stmt.reset(conn->prepareStatement(query));
-                stmt->setString(1, "%" + keyword + "%");
+                stmt->setString(1, keyword + "%");
             } else if (search_type == "email") {
                 query = "SELECT id, username, email, status, total_chats, "
                         "created_at, ban_expires_at, ban_reason FROM users WHERE email LIKE ? AND role = 'user' LIMIT 50";
                 stmt.reset(conn->prepareStatement(query));
-                stmt->setString(1, "%" + keyword + "%");
+                stmt->setString(1, keyword + "%");
             } else if (search_type == "id") {
                 query = "SELECT id, username, email, status, total_chats, "
                         "created_at, ban_expires_at, ban_reason FROM users WHERE id = ? AND role = 'user' LIMIT 50";
@@ -176,11 +176,11 @@ public:
                 stmt->setUInt64(1, std::stoull(keyword));
             } else {
                 query = "SELECT id, username, email, status, total_chats, "
-                        "created_at, ban_expires_at, ban_reason FROM users WHERE (username LIKE ? OR email LIKE ?) "
+                        "created_at, ban_expires_at, ban_reason FROM users WHERE (username LIKE CONCAT(?, '%') OR email LIKE CONCAT(?, '%')) "
                         "AND role = 'user' LIMIT 50";
                 stmt.reset(conn->prepareStatement(query));
-                stmt->setString(1, "%" + keyword + "%");
-                stmt->setString(2, "%" + keyword + "%");
+                stmt->setString(1, keyword);
+                stmt->setString(2, keyword);
             }
 
             auto res = stmt->executeQuery();
@@ -297,9 +297,12 @@ public:
 
                 auto session_key = "user_sessions:" + std::to_string(user_id);
                 auto tokens = RedisClient::instance().smembers(session_key);
+                std::vector<std::string> keys;
+                keys.reserve(tokens.size());
                 for (const auto& t : tokens) {
-                    RedisClient::instance().del("session:" + t);
+                    keys.push_back("session:" + t);
                 }
+                RedisClient::instance().del_batch(keys);
                 RedisClient::instance().del(session_key);
 
                 APP_LOG_INFO("用户 {} 已被封禁 {} 小时，理由: {}", user_id, duration_hours, ban_reason);
@@ -376,9 +379,12 @@ public:
 
             auto session_key = "user_sessions:" + std::to_string(user_id);
             auto tokens = RedisClient::instance().smembers(session_key);
+            std::vector<std::string> keys;
+            keys.reserve(tokens.size());
             for (const auto& t : tokens) {
-                RedisClient::instance().del("session:" + t);
+                keys.push_back("session:" + t);
             }
+            RedisClient::instance().del_batch(keys);
             RedisClient::instance().del(session_key);
 
             APP_LOG_INFO("管理员已强制注销用户 {} ({})", user_id, username);
@@ -426,19 +432,48 @@ public:
         }
 
         try {
+            int total_needed = page * page_size;
             std::vector<std::string> all_lines;
-            std::string line;
-            while (std::getline(file, line)) {
-                if (!filter_level.empty()) {
-                    std::string level_tag = "[" + filter_level + "]";
-                    if (line.find(level_tag) == std::string::npos &&
-                        line.find("[" + filter_level + "]") == std::string::npos) {
-                        continue;
+            all_lines.reserve(total_needed);
+
+            file.seekg(0, std::ios::end);
+            auto file_size = static_cast<int64_t>(file.tellg());
+            if (file_size > 0) {
+                int64_t pos = file_size;
+                std::string line_buffer;
+
+                while (pos > 0 && static_cast<int>(all_lines.size()) < total_needed) {
+                    pos--;
+                    file.seekg(pos);
+                    char c = file.get();
+
+                    if (c == '\n') {
+                        if (!line_buffer.empty()) {
+                            all_lines.insert(all_lines.begin(), line_buffer);
+                            line_buffer.clear();
+                        }
+                    } else {
+                        line_buffer.insert(line_buffer.begin(), c);
                     }
                 }
-                all_lines.push_back(line);
+
+                if (!line_buffer.empty() && static_cast<int>(all_lines.size()) < total_needed) {
+                    all_lines.insert(all_lines.begin(), line_buffer);
+                }
             }
             file.close();
+
+            if (!filter_level.empty()) {
+                std::vector<std::string> filtered;
+                filtered.reserve(all_lines.size());
+                std::string level_tag = "[" + filter_level + "]";
+                for (const auto& line : all_lines) {
+                    if (line.find(level_tag) != std::string::npos) {
+                        filtered.push_back(line);
+                    }
+                }
+                all_lines = std::move(filtered);
+            }
 
             int total = static_cast<int>(all_lines.size());
             int offset = (page - 1) * page_size;

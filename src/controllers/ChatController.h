@@ -118,6 +118,8 @@ public:
             return;
         }
 
+        auto cb_ptr = std::make_shared<std::function<void(const HttpResponsePtr&)>>(std::move(callback));
+
         try {
             auto conn = MySQLClient::instance().acquire();
 
@@ -127,35 +129,76 @@ public:
             stmt->setString(2, content);
             stmt->executeUpdate();
 
-            std::string ai_reply = callAIService(content);
+            auto conn_ptr = std::make_shared<std::unique_ptr<sql::Connection>>(std::move(conn));
 
-            auto ai_stmt = conn->prepareStatement(
-                "INSERT INTO chat_messages (user_id, role, content) VALUES (?, 'assistant', ?)");
-            ai_stmt->setUInt64(1, user_id);
-            ai_stmt->setString(2, ai_reply);
-            ai_stmt->executeUpdate();
+            auto client = HttpClient::newHttpClient(ai_api_url_);
+            auto ai_req = HttpRequest::newHttpRequest();
+            ai_req->setPath("/v1/chat/completions");
+            ai_req->setMethod(HttpMethod::Post);
+            ai_req->setContentTypeCode(ContentType::CT_APPLICATION_JSON);
+            ai_req->addHeader("Authorization", "Bearer " + ai_api_key_);
 
-            auto update = conn->prepareStatement(
-                "UPDATE users SET total_chats = total_chats + 1 WHERE id = ?");
-            update->setUInt64(1, user_id);
-            update->executeUpdate();
+            Json::Value body;
+            body["model"] = ai_model_;
+            Json::Value msgs(Json::arrayValue);
+            Json::Value msg;
+            msg["role"] = "user";
+            msg["content"] = content;
+            msgs.append(msg);
+            body["messages"] = msgs;
+            ai_req->setBody(body.toStyledString());
 
-            MySQLClient::instance().release(std::move(conn));
+            client->sendRequest(ai_req, [cb_ptr, conn_ptr, user_id](ReqResult result, const HttpResponsePtr& response) {
+                if (result != ReqResult::Ok || !response) {
+                    MySQLClient::instance().release(std::move(*conn_ptr));
+                    auto resp = HttpResponse::newHttpResponse();
+                    resp->setBody(generateError(502, "AI服务请求失败，请稍后重试。"));
+                    (*cb_ptr)(resp);
+                    return;
+                }
 
-            Json::Value result;
-            result["code"] = 200;
-            result["message"] = "操作成功";
-            result["data"]["reply"] = ai_reply;
+                auto resp_json = response->getJsonObject();
+                std::string ai_reply;
+                if (resp_json && (*resp_json)["choices"].isArray() && (*resp_json)["choices"].size() > 0) {
+                    ai_reply = (*resp_json)["choices"][0]["message"]["content"].asString();
+                } else {
+                    ai_reply = "AI服务返回格式异常，请稍后重试。";
+                }
 
-            auto resp = HttpResponse::newHttpResponse();
-            resp->setBody(result.toStyledString());
-            callback(resp);
+                try {
+                    auto& conn = *conn_ptr;
+                    auto ai_stmt = conn->prepareStatement(
+                        "INSERT INTO chat_messages (user_id, role, content) VALUES (?, 'assistant', ?)");
+                    ai_stmt->setUInt64(1, user_id);
+                    ai_stmt->setString(2, ai_reply);
+                    ai_stmt->executeUpdate();
+
+                    auto update = conn->prepareStatement(
+                        "UPDATE users SET total_chats = total_chats + 1 WHERE id = ?");
+                    update->setUInt64(1, user_id);
+                    update->executeUpdate();
+
+                    MySQLClient::instance().release(std::move(*conn_ptr));
+                } catch (const std::exception& e) {
+                    APP_LOG_ERROR("Save AI reply error: {}", e.what());
+                    MySQLClient::instance().release(std::move(*conn_ptr));
+                }
+
+                Json::Value result_json;
+                result_json["code"] = 200;
+                result_json["message"] = "操作成功";
+                result_json["data"]["reply"] = ai_reply;
+
+                auto resp = HttpResponse::newHttpResponse();
+                resp->setBody(result_json.toStyledString());
+                (*cb_ptr)(resp);
+            }, 30.0);
 
         } catch (const std::exception& e) {
             APP_LOG_ERROR("Send message error: {}", e.what());
             auto resp = HttpResponse::newHttpResponse();
             resp->setBody(generateError(500, "服务器错误"));
-            callback(resp);
+            (*cb_ptr)(resp);
         }
     }
 
