@@ -10,11 +10,15 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()" aria-label="切换菜单">☰</button>
     <div class="main-container">
-        <div class="sidebar">
+        <div class="sidebar" id="mainSidebar">
             <div class="sidebar-header">
-                <h2>管理后台</h2>
-                <div class="user-id" id="sidebarInfo"></div>
+                <div>
+                    <h2>管理后台</h2>
+                    <div class="user-id" id="sidebarInfo"></div>
+                </div>
             </div>
             <nav class="sidebar-nav">
                 <a class="active" onclick="switchTab('dashboard')" id="navDashboard">
@@ -37,7 +41,31 @@
                 <h3 id="contentTitle">仪表盘</h3>
             </div>
             <div class="content-body" id="contentBody"></div>
+            <footer class="site-footer">
+                <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">沪ICP备2024XXXXXX号-1</a>
+                <span class="footer-sep">|</span>
+                <span>© 2026 AI Chat Room</span>
+            </footer>
         </div>
+
+        <nav class="mobile-tab-bar" id="mobileTabBar">
+            <a class="active" onclick="switchTab('dashboard')" id="mNavDashboard">
+                <span class="tab-icon">📊</span>
+                <span>仪表盘</span>
+            </a>
+            <a onclick="switchTab('users')" id="mNavUsers">
+                <span class="tab-icon">👥</span>
+                <span>用户</span>
+            </a>
+            <a onclick="switchTab('logs')" id="mNavLogs">
+                <span class="tab-icon">📋</span>
+                <span>日志</span>
+            </a>
+            <a onclick="logout()">
+                <span class="tab-icon">🚪</span>
+                <span>退出</span>
+            </a>
+        </nav>
     </div>
 
     <div class="modal" id="modal">
@@ -72,10 +100,31 @@
             });
         }
 
+        function toggleSidebar() {
+            var sidebar = document.getElementById('mainSidebar');
+            var overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+        }
+
         function switchTab(tab) {
             currentTab = tab;
+            if (window.innerWidth <= 1024) {
+                var s = document.getElementById('mainSidebar');
+                if (s) s.classList.remove('mobile-open');
+                var o = document.getElementById('sidebarOverlay');
+                if (o) o.classList.remove('active');
+            }
             document.querySelectorAll('.sidebar-nav a').forEach(function(a) { a.classList.remove('active'); });
-            document.getElementById('nav' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+            var navEl = document.getElementById('nav' + tab.charAt(0).toUpperCase() + tab.slice(1));
+            if (navEl) navEl.classList.add('active');
+            document.querySelectorAll('.mobile-tab-bar a').forEach(function(a) {
+                if (a.onclick && a.onclick.toString().indexOf("switchTab('" + tab + "')") >= 0) {
+                    a.classList.add('active');
+                } else {
+                    a.classList.remove('active');
+                }
+            });
             var titles = { dashboard: '仪表盘', users: '用户管理', logs: '服务器日志' };
             document.getElementById('contentTitle').textContent = titles[tab];
             currentPage = 1;
@@ -163,7 +212,7 @@
                 container.innerHTML = '<div class="empty-state"><p>暂无数据</p></div>';
                 return;
             }
-            var html = '<table class="data-table"><thead><tr>' +
+            var html = '<div class="data-table-wrapper"><table class="data-table"><thead><tr>' +
                 '<th>ID</th><th>用户名</th><th>邮箱</th><th>状态</th><th>封禁到期</th><th>封禁理由</th><th>对话数</th><th>操作</th></tr></thead><tbody>';
             users.forEach(function(u) {
                 var userStatus = u.online ? '在线' : '离线';
@@ -190,7 +239,7 @@
                     '<td>' + banBtn + '</td>' +
                     '</tr>';
             });
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         }
 
@@ -308,7 +357,7 @@
                     if (!res.data.logs || res.data.logs.length === 0) {
                         container.innerHTML = '<div class="empty-state"><p>暂无日志</p></div>';
                     } else {
-                        var html = '<table class="data-table log-table"><thead><tr>' +
+                        var html = '<div class="data-table-wrapper"><table class="data-table log-table"><thead><tr>' +
                             '<th>时间</th><th>级别</th><th>消息</th></tr></thead><tbody>';
                         var levelColors = { info:'#2196f3', warn:'#ff9800', error:'#f44336', critical:'#d32f2f', debug:'#9e9e9e', trace:'#9e9e9e' };
                         var bgColors = { info:'#e3f2fd', warn:'#fff3e0', error:'#ffebee', critical:'#ffcdd2', debug:'#f5f5f5', trace:'#f5f5f5' };
@@ -323,7 +372,7 @@
                                 '<td style="font-size:12px;font-family:monospace;word-break:break-all;">' + escapeHtml(l.message) + '</td>' +
                                 '</tr>';
                         });
-                        html += '</tbody></table>';
+                        html += '</tbody></table></div>';
                         container.innerHTML = html;
                     }
                     renderPagination('logsPagination', page, Math.ceil((res.data.total || 0) / 20), loadLogs);

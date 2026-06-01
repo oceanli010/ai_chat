@@ -63,3 +63,9 @@ target_link_libraries(ai_chat_server PRIVATE
 install(TARGETS ai_chat_server DESTINATION bin)
 install(DIRECTORY views/ DESTINATION share/ai_chat/views)
 install(DIRECTORY config/ DESTINATION share/ai_chat/config)
+
+option(BUILD_TESTS "Build test suite" OFF)
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

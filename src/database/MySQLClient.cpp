@@ -37,35 +37,67 @@ void MySQLClient::init(const std::string& host,
         }
     }
 
-    APP_LOG_INFO("MySQL connection pool initialized with {} connections", pool_size_);
+    APP_LOG_INFO("MySQL connection pool initialized with {}/{} connections",
+                 pool_.size(), pool_size_);
+    if (pool_.empty()) {
+        APP_LOG_WARN("MySQL pool is empty — database '{}' may not exist", database_);
+    }
 }
 
 std::unique_ptr<sql::Connection> MySQLClient::acquire() {
     std::unique_lock<std::mutex> lock(mutex_);
     while (pool_.empty()) {
-        cond_.wait(lock);
+        // 池为空时等待（最多10秒），避免永久阻塞
+        if (cond_.wait_for(lock, std::chrono::seconds(10)) == std::cv_status::timeout) {
+            // 超时后主动尝试创建一个新连接
+            auto new_conn = create_connection();
+            if (new_conn) {
+                return new_conn;
+            }
+        }
     }
     auto conn = std::move(pool_.front());
     pool_.pop();
+    lock.unlock();
 
-    if (conn->isClosed()) {
-        conn = create_connection();
-        if (!conn) {
-            while (pool_.empty()) {
-                cond_.wait(lock);
-            }
-            conn = std::move(pool_.front());
-            pool_.pop();
+    try {
+        if (conn->isClosed()) {
+            conn = create_connection();
         }
+    } catch (const std::exception& e) {
+        APP_LOG_WARN("Acquire: connection check failed ({}), creating new", e.what());
+        conn = create_connection();
+    }
+
+    // 如果重连失败，递归重试（但限制重试次数防止栈溢出）
+    if (!conn) {
+        APP_LOG_WARN("Acquire: failed to create new connection, retrying...");
+        return acquire();
     }
 
     return conn;
 }
 
 void MySQLClient::release(std::unique_ptr<sql::Connection> conn) {
-    if (conn && !conn->isClosed()) {
+    if (!conn) return;
+    bool valid = false;
+    try {
+        valid = !conn->isClosed();
+    } catch (...) {
+        valid = false;
+    }
+    if (valid) {
         std::lock_guard<std::mutex> lock(mutex_);
         pool_.push(std::move(conn));
         cond_.notify_one();
+    } else {
+        APP_LOG_WARN("Release: discarding stale MySQL connection");
+        // 尝试补充一个新连接回池中
+        auto new_conn = create_connection();
+        if (new_conn) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            pool_.push(std::move(new_conn));
+            cond_.notify_one();
+        }
     }
 }

@@ -201,3 +201,23 @@ function disconnectNotificationWS() {
         wsConnection = null;
     }
 }
+
+// ============= Mobile Device Detection =============
+(function() {
+    var isMobile = false;
+    var ua = navigator.userAgent;
+    if (/Mobile|Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(ua)) {
+        isMobile = true;
+    }
+    if ('ontouchstart' in window && window.innerWidth <= 1024) {
+        isMobile = true;
+    }
+    if (isMobile) {
+        document.documentElement.classList.add('mobile-device');
+        var body = document.body;
+        if (body) body.classList.add('mobile-device');
+        else document.addEventListener('DOMContentLoaded', function() {
+            document.body.classList.add('mobile-device');
+        });
+    }
+})();

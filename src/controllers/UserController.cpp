@@ -239,11 +239,28 @@ void UserController::deleteAccount(const HttpRequestPtr& req,
         std::string cancel_delete_until_str;
         try { cancel_delete_until_str = std::string(res->getString("cancel_delete_until")); } catch (...) {}
         if (!cancel_delete_until_str.empty()) {
-            MySQLClient::instance().release(std::move(conn));
-            auto resp = HttpResponse::newHttpResponse();
-            resp->setBody(generateError(400, "您曾取消过注销申请，72小时内不允许再次申请注销，请稍后再试"));
-            callback(resp);
-            return;
+            // 解析日期并判断冷静期是否已过
+            bool cooldown_active = false;
+            try {
+                std::tm tm = {};
+                std::stringstream ss(cancel_delete_until_str);
+                ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+                if (!ss.fail()) {
+                    auto cancel_until_tp = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+                    auto now = std::chrono::system_clock::now();
+                    if (now < cancel_until_tp) {
+                        cooldown_active = true;
+                    }
+                }
+            } catch (...) {}
+            if (cooldown_active) {
+                MySQLClient::instance().release(std::move(conn));
+                auto resp = HttpResponse::newHttpResponse();
+                resp->setBody(generateError(400, "您曾取消过注销申请，72小时内不允许再次申请注销，请稍后再试"));
+                callback(resp);
+                return;
+            }
+            // 冷静期已过，允许继续注销，清除旧的 cancel_delete_until
         }
         MySQLClient::instance().release(std::move(conn));
 
@@ -261,7 +278,8 @@ void UserController::deleteAccount(const HttpRequestPtr& req,
 
         conn = MySQLClient::instance().acquire();
         auto upd = conn->prepareStatement(
-            "UPDATE users SET status = 'pending_deletion', deleted_at = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id = ?");
+            "UPDATE users SET status = 'pending_deletion', deleted_at = DATE_ADD(NOW(), INTERVAL 24 HOUR), "
+            "cancel_delete_until = NULL WHERE id = ?");
         upd->setUInt64(1, user_id);
         upd->executeUpdate();
         MySQLClient::instance().release(std::move(conn));

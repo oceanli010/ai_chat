@@ -10,11 +10,15 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()" aria-label="切换菜单">☰</button>
     <div class="main-container">
-        <div class="sidebar">
+        <div class="sidebar" id="mainSidebar">
             <div class="sidebar-header">
-                <h2 id="sidebarName">AI 聊天室</h2>
-                <div class="user-id" id="sidebarInfo"></div>
+                <div>
+                    <h2 id="sidebarName">AI 聊天室</h2>
+                    <div class="user-id" id="sidebarInfo"></div>
+                </div>
             </div>
             <nav class="sidebar-nav">
                 <a class="active" onclick="switchTab('chat')" id="navChat">
@@ -34,7 +38,27 @@
                 <h3 id="contentTitle">AI 聊天</h3>
             </div>
             <div class="content-body" id="contentBody"></div>
+            <footer class="site-footer">
+                <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">沪ICP备2024XXXXXX号-1</a>
+                <span class="footer-sep">|</span>
+                <span>© 2026 AI Chat Room</span>
+            </footer>
         </div>
+
+        <nav class="mobile-tab-bar" id="mobileTabBar">
+            <a class="active" onclick="switchTab('chat')" id="mNavChat">
+                <span class="tab-icon">💬</span>
+                <span>聊天</span>
+            </a>
+            <a onclick="switchTab('profile')" id="mNavProfile">
+                <span class="tab-icon">👤</span>
+                <span>个人中心</span>
+            </a>
+            <a onclick="logout()">
+                <span class="tab-icon">🚪</span>
+                <span>退出</span>
+            </a>
+        </nav>
     </div>
 
     <div class="modal" id="modal">
@@ -83,16 +107,39 @@
             renderCurrentTab();
         }
 
+        function toggleSidebar() {
+            var sidebar = document.getElementById('mainSidebar');
+            var overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+        }
+
         function switchTab(tab) {
             currentTab = tab;
+            if (window.innerWidth <= 1024) {
+                var sidebar = document.getElementById('mainSidebar');
+                if (sidebar) sidebar.classList.remove('mobile-open');
+                var overlay = document.getElementById('sidebarOverlay');
+                if (overlay) overlay.classList.remove('active');
+            }
             document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
-            document.getElementById('nav' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
-            document.getElementById('contentTitle').textContent = tab === 'chat' ? 'AI 聊天' : '个人中心';
+            var navEl = document.getElementById('nav' + tab.charAt(0).toUpperCase() + tab.slice(1));
+            if (navEl) navEl.classList.add('active');
+            document.querySelectorAll('.mobile-tab-bar a').forEach(function(a) {
+                if (a.onclick && a.onclick.toString().indexOf("switchTab('" + tab + "')") >= 0) {
+                    a.classList.add('active');
+                } else {
+                    a.classList.remove('active');
+                }
+            });
+            var titles = { chat: 'AI 聊天', profile: '个人中心', notifications: '通知' };
+            document.getElementById('contentTitle').textContent = titles[tab] || 'AI 聊天';
             renderCurrentTab();
         }
 
         function renderCurrentTab() {
             if (currentTab === 'chat') renderChat();
+            else if (currentTab === 'notifications' && typeof renderNotifications === 'function') renderNotifications();
             else renderProfile();
         }
 
@@ -105,8 +152,8 @@
                 '  </div>' +
                 '  <div class="chat-input-area">' +
                 '    <textarea id="chatInput" placeholder="输入消息，与AI对话..." rows="1"></textarea>' +
-                '    <button id="sendBtn" onclick="sendChatMessage()">发送</button>' +
-                '    <button class="btn-sm btn-warning" style="align-self:flex-end;margin-bottom:0;" onclick="clearChat()">清除记录</button>' +
+                '    <button id="sendBtn" class="btn-icon btn-send" onclick="sendChatMessage()" title="发送消息" data-tooltip="发送消息">➤</button>' +
+                '    <button class="btn-icon btn-clear" onclick="clearChat()" title="清除聊天记录" data-tooltip="清除聊天记录">✕</button>' +
                 '  </div>' +
                 '</div>';
             loadHistory();

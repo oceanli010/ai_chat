@@ -1,4 +1,18 @@
 #include "EmailSender.h"
+#include <openssl/err.h>
+
+// OpenSSL 全局初始化，只执行一次
+namespace {
+    class OpenSSLGlobalInit {
+    public:
+        OpenSSLGlobalInit() {
+            SSL_library_init();
+            SSL_load_error_strings();
+            OpenSSL_add_all_algorithms();
+        }
+    };
+    OpenSSLGlobalInit openssl_init;
+}
 
 EmailSender::EmailSender(const std::string& smtp_host,
                          int smtp_port,
@@ -47,8 +61,7 @@ bool EmailSender::send_account_deleted_notification(const std::string& to_email,
 bool EmailSender::send_email(const std::string& to,
                               const std::string& subject,
                               const std::string& body) {
-    SSL_library_init();
-    SSL_load_error_strings();
+    // SSL 全局初始化已在静态对象中完成，此处不再重复调用
 
     SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
     if (!ctx) {
@@ -73,6 +86,7 @@ bool EmailSender::send_email(const std::string& to,
     }
 
     SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+
     SSL_set_tlsext_host_name(ssl, smtp_host_.c_str());
 
     std::string hostport = smtp_host_ + ":" + std::to_string(smtp_port_);
@@ -113,11 +127,37 @@ bool EmailSender::send_email(const std::string& to,
         return false;
     }
 
-    if (!send_cmd("EHLO localhost\r\n") || !expect_code("250")) {
-        APP_LOG_ERROR("EHLO failed");
+    if (!send_cmd("EHLO localhost\r\n")) {
+        APP_LOG_ERROR("EHLO send failed");
         BIO_free_all(bio);
         SSL_CTX_free(ctx);
         return false;
+    }
+
+    // EHLO 响应可能是多行的（例如 250-SIZE...、250-AUTH...），需要全部读取
+    {
+        bool ehlo_ok = false;
+        std::string line;
+        do {
+            line = read_line();
+            if (line.size() >= 3) {
+                std::string code = line.substr(0, 3);
+                if (code == "250" && line.size() >= 4 && line[3] == ' ') {
+                    ehlo_ok = true;
+                    break;
+                } else if (code != "250") {
+                    // 非 250 开头，EHLO 失败
+                    break;
+                }
+                // 250- 继续读取下一行
+            }
+        } while (!line.empty());
+        if (!ehlo_ok) {
+            APP_LOG_ERROR("EHLO failed");
+            BIO_free_all(bio);
+            SSL_CTX_free(ctx);
+            return false;
+        }
     }
 
     if (!send_cmd("AUTH LOGIN\r\n") || !expect_code("334")) {
@@ -170,9 +210,9 @@ bool EmailSender::send_email(const std::string& to,
         "Content-Type: text/plain; charset=UTF-8\r\n"
         "Content-Transfer-Encoding: 8bit\r\n"
         "\r\n" +
-        body + "\r\n";
+        body + "\r\n.\r\n";
 
-    if (!send_cmd(content) || !send_cmd("\r\n.\r\n") || !expect_code("250")) {
+    if (!send_cmd(content) || !expect_code("250")) {
         APP_LOG_ERROR("DATA content failed");
         BIO_free_all(bio);
         SSL_CTX_free(ctx);
