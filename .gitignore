@@ -33,6 +33,7 @@ logs/
 
 # === Config (contains sensitive credentials) ===
 config/config.json
+config/config.test.json
 config/*.json
 !config/config.example.json
 
@@ -55,3 +56,11 @@ Desktop.ini
 QUESTION.md
 STUDY.md
 nohup.out
+buglist.md
+.jwt_secret
+run_tests.sh
+
+# Test artifacts
+build_test/
+reports/
+tests/

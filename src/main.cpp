@@ -15,8 +15,6 @@
 #include "controllers/NotificationController.h"
 #include "middleware/AuthMiddleware.h"
 
-std::shared_ptr<EmailSender> AdminController::email_sender_ = nullptr;
-
 using namespace drogon;
 
 Json::Value loadConfig(const std::string& config_path) {

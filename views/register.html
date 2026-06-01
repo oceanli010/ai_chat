@@ -7,9 +7,10 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <div class="auth-container">
-        <h1>AI 聊天室</h1>
-        <p class="subtitle">创建你的账号，开始与AI对话</p>
+    <div class="auth-wrapper">
+        <div class="auth-container">
+            <h1>AI 聊天室</h1>
+            <p class="subtitle">创建你的账号，开始与AI对话</p>
         <form id="registerForm">
             <div class="form-group">
                 <label>邮箱</label>
@@ -41,6 +42,7 @@
             <a href="/login.html">已有账号？立即登录</a>
         </div>
     </div>
+
     <script src="/js/app.js"></script>
     <script>
         var sendCooldown = 0;
@@ -148,5 +150,11 @@
             }
         });
     </script>
+
+    <footer class="auth-footer">
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">沪ICP备2024XXXXXX号-1</a>
+        <span class="footer-sep">|</span>
+        <span>© 2026 AI Chat Room</span>
+    </footer>
 </body>
 </html>
