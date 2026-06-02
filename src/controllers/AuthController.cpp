@@ -39,7 +39,7 @@ void AuthController::sendCode(const HttpRequestPtr& req,
         email_sent = email_sender_->send_verification_code(email, code);
     }
 
-    APP_LOG_INFO("Verification code for {}: {}** (email sent: {})", email, code.substr(0, 2), email_sent);
+    APP_LOG_INFO("Verification code for {} (email sent: {})", email, email_sent);
 
     auto resp = HttpResponse::newHttpResponse();
     resp->setBody(generateSuccess("验证码已发送"));
@@ -79,7 +79,7 @@ void AuthController::sendDeleteCode(const HttpRequestPtr& req,
         if (email_sender_) {
             email_sender_->send_delete_account_code(email, code);
         }
-        APP_LOG_INFO("Delete account verification code for {}: {}** (email sent: {})", email, code.substr(0, 2), email_sender_ != nullptr);
+        APP_LOG_INFO("Delete account verification code for {} (email sent: {})", email, email_sender_ != nullptr);
 
         auto resp = HttpResponse::newHttpResponse();
         resp->setBody(generateSuccess("注销验证码已发送到注册邮箱"));

@@ -69,10 +69,14 @@ std::unique_ptr<sql::Connection> MySQLClient::acquire() {
         conn = create_connection();
     }
 
-    // 如果重连失败，递归重试（但限制重试次数防止栈溢出）
+    // 如果重连失败，循环重试（最多3次）
+    int retries = 3;
+    while (!conn && retries-- > 0) {
+        APP_LOG_WARN("Acquire: failed to create new connection, retrying... ({} retries left)", retries);
+        conn = create_connection();
+    }
     if (!conn) {
-        APP_LOG_WARN("Acquire: failed to create new connection, retrying...");
-        return acquire();
+        throw std::runtime_error("Failed to acquire database connection after multiple retries");
     }
 
     return conn;

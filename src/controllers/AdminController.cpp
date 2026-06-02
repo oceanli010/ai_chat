@@ -413,36 +413,19 @@ void AdminController::getLogs(const HttpRequestPtr& req,
     }
 
     try {
-        int total_needed = page * page_size;
+        // 逐行读取全部日志
         std::vector<std::string> all_lines;
-        all_lines.reserve(total_needed);
-
-        file.seekg(0, std::ios::end);
-        auto file_size = static_cast<int64_t>(file.tellg());
-        if (file_size > 0) {
-            int64_t pos = file_size;
-            std::string line_buffer;
-
-            while (pos > 0 && static_cast<int>(all_lines.size()) < total_needed) {
-                pos--;
-                file.seekg(pos);
-                char c = file.get();
-
-                if (c == '\n') {
-                    if (!line_buffer.empty()) {
-                        all_lines.insert(all_lines.begin(), line_buffer);
-                        line_buffer.clear();
-                    }
-                } else {
-                    line_buffer.insert(line_buffer.begin(), c);
-                }
-            }
-
-            if (!line_buffer.empty() && static_cast<int>(all_lines.size()) < total_needed) {
-                all_lines.insert(all_lines.begin(), line_buffer);
-            }
+        std::string line;
+        while (std::getline(file, line)) {
+            all_lines.push_back(std::move(line));
         }
         file.close();
+
+        int total_needed = page * page_size;
+        if (static_cast<int>(all_lines.size()) > total_needed) {
+            all_lines.erase(all_lines.begin(),
+                            all_lines.begin() + (all_lines.size() - total_needed));
+        }
 
         if (!filter_level.empty()) {
             std::vector<std::string> filtered;

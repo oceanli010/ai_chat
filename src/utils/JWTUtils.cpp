@@ -125,10 +125,9 @@ std::string JWTUtils::base64url_decode(const std::string& input) {
 
     if (buf.size() % 4 == 3) {
         result += (buf[buf.size() - 3] << 2) | (buf[buf.size() - 2] >> 4);
+        result += (buf[buf.size() - 2] << 4) | (buf[buf.size() - 1] >> 2);
     } else if (buf.size() % 4 == 2) {
         result += (buf[buf.size() - 2] << 2) | (buf[buf.size() - 1] >> 4);
-        result += (buf[buf.size() - 1] << 4) | (buf[buf.size() - 0] >> 2);
-        result.pop_back();
     }
 
     return result;

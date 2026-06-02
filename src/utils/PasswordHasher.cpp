@@ -40,11 +40,12 @@ bool PasswordHasher::verify_password(const std::string& password,
 std::string PasswordHasher::hash_password(const std::string& password,
                                            const std::string& salt) {
     unsigned char derived_key[32];
-    PKCS5_PBKDF2_HMAC_SHA1(
+    PKCS5_PBKDF2_HMAC(
         password.c_str(), static_cast<int>(password.length()),
         reinterpret_cast<const unsigned char*>(salt.c_str()),
         static_cast<int>(salt.length()),
         100000,
+        EVP_sha256(),
         sizeof(derived_key), derived_key);
 
     std::stringstream ss;
