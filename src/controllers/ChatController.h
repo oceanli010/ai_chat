@@ -39,7 +39,6 @@ private:
     static std::string ai_api_key_;
     static std::string ai_model_;
 
-    static std::string callAIService(const std::string& user_message);
     static std::string generateError(int code, const std::string& message);
     static std::string generateSuccess(const std::string& message);
 };

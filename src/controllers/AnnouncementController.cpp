@@ -119,21 +119,18 @@ void AnnouncementController::list(const HttpRequestPtr& req,
         int total = count_res->getInt(1);
 
         auto stmt = conn->prepareStatement(
-            "SELECT a.id, a.title, a.content, a.level, a.auto_delete, a.admin_id, a.created_at "
+            "SELECT a.id, a.title, a.content, a.level, a.auto_delete, a.admin_id, a.created_at, "
+            "(SELECT id FROM announcement_reads WHERE user_id = ? AND announcement_id = a.id) IS NOT NULL AS is_read "
             "FROM announcements a ORDER BY a.created_at DESC LIMIT ? OFFSET ?");
-        stmt->setInt(1, size);
-        stmt->setInt(2, offset);
+        stmt->setUInt64(1, user_id);
+        stmt->setInt(2, size);
+        stmt->setInt(3, offset);
         auto res = stmt->executeQuery();
 
         Json::Value list_data(Json::arrayValue);
         while (res->next()) {
             uint64_t ann_id = res->getUInt64("id");
-            auto read_stmt = conn->prepareStatement(
-                "SELECT id FROM announcement_reads WHERE user_id = ? AND announcement_id = ?");
-            read_stmt->setUInt64(1, user_id);
-            read_stmt->setUInt64(2, ann_id);
-            auto read_res = read_stmt->executeQuery();
-            bool is_read = read_res->next();
+            bool is_read = res->getBoolean("is_read");
 
             Json::Value item;
             item["id"] = ann_id;

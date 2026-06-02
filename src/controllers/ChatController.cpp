@@ -217,49 +217,6 @@ void ChatController::setAIAPIUrl(const std::string& url) { ai_api_url_ = url; }
 void ChatController::setAIAPIKey(const std::string& key) { ai_api_key_ = key; }
 void ChatController::setAIModel(const std::string& model) { ai_model_ = model; }
 
-std::string ChatController::callAIService(const std::string& user_message) {
-    if (ai_api_key_.empty()) {
-        return "AI服务未配置，请在config.json中设置API密钥。";
-    }
-
-    auto client = HttpClient::newHttpClient(ai_api_url_);
-    auto req = HttpRequest::newHttpRequest();
-    req->setPath("/v1/chat/completions");
-    req->setMethod(HttpMethod::Post);
-    req->setContentTypeCode(ContentType::CT_APPLICATION_JSON);
-    req->addHeader("Authorization", "Bearer " + ai_api_key_);
-
-    Json::Value body;
-    body["model"] = ai_model_;
-    Json::Value msgs(Json::arrayValue);
-    Json::Value msg;
-    msg["role"] = "user";
-    msg["content"] = user_message;
-    msgs.append(msg);
-    body["messages"] = msgs;
-
-    req->setBody(body.toStyledString());
-
-    try {
-        auto result_pair = client->sendRequest(req, 30.0);
-        auto resp = result_pair.second;
-        if (result_pair.first != ReqResult::Ok || !resp) {
-            return "AI服务请求失败，请稍后重试。";
-        }
-        auto resp_json = resp->getJsonObject();
-        if (resp_json && (*resp_json)["choices"].isArray()) {
-            auto& choices = (*resp_json)["choices"];
-            if (choices.size() > 0) {
-                return choices[0]["message"]["content"].asString();
-            }
-        }
-        return "AI服务返回格式异常，请稍后重试。";
-    } catch (const std::exception& e) {
-        APP_LOG_ERROR("AI service call failed: {}", e.what());
-        return "AI服务调用失败，请检查API配置和网络连接。";
-    }
-}
-
 std::string ChatController::generateError(int code, const std::string& message) {
     Json::Value result;
     result["code"] = code;

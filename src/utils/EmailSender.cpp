@@ -110,10 +110,6 @@ bool EmailSender::send_email(const std::string& to,
             curl_easy_setopt(curl, CURLOPT_USE_SSL,     CURLUSESSL_ALL);
         }
 
-        // 关闭证书严格验证
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER,  0L);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST,  0L);
-
         APP_LOG_INFO("Sending email to {} via {}…", to, url);
 
         CURLcode res = curl_easy_perform(curl);

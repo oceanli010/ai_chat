@@ -71,7 +71,13 @@ public:
     sql::Connection& operator*() const { return *conn_; }
     sql::Connection* get() const { return conn_.get(); }
 
-    bool valid() const { return conn_ != nullptr && !conn_->isClosed(); }
+    bool valid() const {
+        try {
+            return conn_ != nullptr && !conn_->isClosed();
+        } catch (...) {
+            return false;
+        }
+    }
 
     ScopedConnection(const ScopedConnection&) = delete;
     ScopedConnection& operator=(const ScopedConnection&) = delete;
