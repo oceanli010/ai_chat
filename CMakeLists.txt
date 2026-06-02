@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(OpenSSL REQUIRED)
+find_package(CURL REQUIRED)
 find_package(Threads REQUIRED)
 
 # spdlog: apt install libspdlog-dev or vcpkg install spdlog
@@ -54,6 +55,7 @@ target_link_libraries(ai_chat_server PRIVATE
     nlohmann_json::nlohmann_json
     PkgConfig::HIREDIS
     mysqlcppconn::mysqlcppconn
+    CURL::libcurl
     OpenSSL::SSL
     OpenSSL::Crypto
     Threads::Threads

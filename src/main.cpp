@@ -13,6 +13,7 @@
 #include "controllers/ChatController.h"
 #include "controllers/AdminController.h"
 #include "controllers/NotificationController.h"
+#include "controllers/AnnouncementController.h"
 #include "middleware/AuthMiddleware.h"
 
 using namespace drogon;
@@ -65,8 +66,6 @@ void initAdminAccount(const Json::Value& config) {
     } else {
         APP_LOG_INFO("Admin account already exists");
     }
-
-    MySQLClient::instance().release(std::move(conn));
 }
 
 void scheduleCleanupTask() {
@@ -103,6 +102,22 @@ void scheduleCleanupTask() {
             MySQLClient::instance().release(std::move(conn));
         } catch (const std::exception& e) {
             APP_LOG_ERROR("Cleanup task error: {}", e.what());
+        }
+    });
+}
+
+void scheduleAnnouncementCleanup() {
+    app().getLoop()->runEvery(21600.0, []() {
+        try {
+            auto conn = MySQLClient::instance().acquire();
+            auto stmt = conn->prepareStatement(
+                "DELETE FROM announcements WHERE auto_delete = 1 "
+                "AND created_at < DATE_SUB(NOW(), INTERVAL 90 DAY)");
+            int deleted = stmt->executeUpdate();
+            if (deleted > 0) APP_LOG_INFO("Cleaned {} old announcements", deleted);
+            conn.reset();
+        } catch (const std::exception& e) {
+            APP_LOG_ERROR("Announcement cleanup error: {}", e.what());
         }
     });
 }
@@ -176,6 +191,7 @@ int main(int argc, char* argv[]) {
     ChatController::setAIModel(ai_cfg["model"].asString());
 
     scheduleCleanupTask();
+    scheduleAnnouncementCleanup();
 
     auto& server_cfg = config["server"];
     bool use_https = server_cfg.isMember("enable_https") && server_cfg["enable_https"].asBool();

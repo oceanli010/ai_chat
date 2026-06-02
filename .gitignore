@@ -64,3 +64,4 @@ run_tests.sh
 build_test/
 reports/
 tests/
+/py_test/
