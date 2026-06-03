@@ -1,5 +1,9 @@
 #include "UserController.h"
 
+// getUserIdFromToken
+// 功能：从 HTTP 请求的 Authorization 头中解析 JWT token 并提取用户 ID
+// 参数：req - HTTP 请求对象
+// 返回值：uint64_t - 用户 ID
 uint64_t UserController::getUserIdFromToken(const HttpRequestPtr& req) {
     auto auth = req->getHeader("Authorization");
     if (auth.substr(0, 7) == "Bearer ") auth = auth.substr(7);
@@ -7,6 +11,9 @@ uint64_t UserController::getUserIdFromToken(const HttpRequestPtr& req) {
     return data.user_id;
 }
 
+// getProfile
+// 功能：获取当前登录用户的个人信息
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
 void UserController::getProfile(const HttpRequestPtr& req,
                                  std::function<void(const HttpResponsePtr&)>&& callback) {
     try {
@@ -54,6 +61,10 @@ void UserController::getProfile(const HttpRequestPtr& req,
     }
 }
 
+// updateProfile
+// 功能：更新当前登录用户的个人信息（用户名或昵称）
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：支持单独更新用户名或昵称，也可同时更新两者
 void UserController::updateProfile(const HttpRequestPtr& req,
                                     std::function<void(const HttpResponsePtr&)>&& callback) {
     auto json = req->getJsonObject();
@@ -71,6 +82,7 @@ void UserController::updateProfile(const HttpRequestPtr& req,
     try {
         auto conn = MySQLClient::instance().acquire();
 
+        // 如果修改用户名，检查新用户名是否已被其他用户使用
         if (!new_username.empty()) {
             auto check = conn->prepareStatement(
                 "SELECT COUNT(*) FROM users WHERE username = ? AND id != ?");
@@ -87,6 +99,7 @@ void UserController::updateProfile(const HttpRequestPtr& req,
             }
         }
 
+        // 根据提供的字段组合不同的更新语句
         if (!new_username.empty() && !new_nickname.empty()) {
             auto stmt = conn->prepareStatement(
                 "UPDATE users SET username = ?, nickname = ? WHERE id = ?");
@@ -122,8 +135,13 @@ void UserController::updateProfile(const HttpRequestPtr& req,
     }
 }
 
+// changePassword
+// 功能：修改当前登录用户的密码
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：需要验证旧密码，修改成功后清除所有会话强制重新登录
 void UserController::changePassword(const HttpRequestPtr& req,
                                      std::function<void(const HttpResponsePtr&)>&& callback) {
+    // IP 级别频率限制，5 分钟内最多 10 次
     std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
     auto attempts = RedisClient::instance().incr(rate_key);
     if (attempts == 1) RedisClient::instance().expire(rate_key, 300);
@@ -159,6 +177,7 @@ void UserController::changePassword(const HttpRequestPtr& req,
         std::string old_hash = std::string(res->getString("password_hash"));
         std::string old_salt = std::string(res->getString("password_salt"));
 
+        // 校验旧密码
         if (!PasswordHasher::verify_password(old_password, old_salt, old_hash)) {
             MySQLClient::instance().release(std::move(conn));
             auto resp = HttpResponse::newHttpResponse();
@@ -167,6 +186,7 @@ void UserController::changePassword(const HttpRequestPtr& req,
             return;
         }
 
+        // 生成新密码哈希
         std::string new_hash, new_salt;
         PasswordHasher::generate_hash_and_salt(new_password, new_hash, new_salt);
 
@@ -179,6 +199,7 @@ void UserController::changePassword(const HttpRequestPtr& req,
 
         MySQLClient::instance().release(std::move(conn));
 
+        // 清除所有会话，强制用户重新登录
         auto session_key = "user_sessions:" + std::to_string(user_id);
         auto tokens = RedisClient::instance().smembers(session_key);
         std::vector<std::string> keys;
@@ -202,6 +223,10 @@ void UserController::changePassword(const HttpRequestPtr& req,
     }
 }
 
+// deleteAccount
+// 功能：提交账号注销申请
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：需要邮箱验证码，提交后将账号状态设为 pending_deletion，进入 24 小时冷静期
 void UserController::deleteAccount(const HttpRequestPtr& req,
                                     std::function<void(const HttpResponsePtr&)>&& callback) {
     std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
@@ -236,10 +261,10 @@ void UserController::deleteAccount(const HttpRequestPtr& req,
         }
         std::string email = std::string(res->getString("email"));
 
+        // 检查冷静期内是否取消过注销（72 小时内不可再次申请）
         std::string cancel_delete_until_str;
         try { cancel_delete_until_str = std::string(res->getString("cancel_delete_until")); } catch (...) {}
         if (!cancel_delete_until_str.empty()) {
-            // 解析日期并判断冷静期是否已过
             bool cooldown_active = false;
             try {
                 std::tm tm = {};
@@ -260,10 +285,10 @@ void UserController::deleteAccount(const HttpRequestPtr& req,
                 callback(resp);
                 return;
             }
-            // 冷静期已过，允许继续注销，清除旧的 cancel_delete_until
         }
         MySQLClient::instance().release(std::move(conn));
 
+        // 校验验证码
         std::string redis_key = std::string("verify_code:") + email + ":delete_account";
         std::string stored_code = RedisClient::instance().get(redis_key);
         std::string input_code = (*json)["code"].asString();
@@ -276,6 +301,7 @@ void UserController::deleteAccount(const HttpRequestPtr& req,
         }
         RedisClient::instance().del(redis_key);
 
+        // 设置账号为 pending_deletion 状态，24 小时后自动删除
         conn = MySQLClient::instance().acquire();
         auto upd = conn->prepareStatement(
             "UPDATE users SET status = 'pending_deletion', deleted_at = DATE_ADD(NOW(), INTERVAL 24 HOUR), "
@@ -284,9 +310,11 @@ void UserController::deleteAccount(const HttpRequestPtr& req,
         upd->executeUpdate();
         MySQLClient::instance().release(std::move(conn));
 
+        // 清除当前会话和在线状态
         RedisClient::instance().del("session:" + auth);
         RedisClient::instance().srem("online_users", std::to_string(user_id));
 
+        // 清除该用户的所有其他会话
         auto session_key = "user_sessions:" + std::to_string(user_id);
         auto tokens = RedisClient::instance().smembers(session_key);
         std::vector<std::string> keys;
@@ -309,12 +337,17 @@ void UserController::deleteAccount(const HttpRequestPtr& req,
     }
 }
 
+// cancelDelete
+// 功能：取消账号注销申请
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：支持已登录和未登录两种取消方式，取消后 72 小时内不可再次申请注销
 void UserController::cancelDelete(const HttpRequestPtr& req,
                                    std::function<void(const HttpResponsePtr&)>&& callback) {
     try {
         auto auth = req->getHeader("Authorization");
         uint64_t user_id = 0;
 
+        // 优先尝试从 token 获取用户 ID
         if (!auth.empty()) {
             auto token = auth;
             if (token.substr(0, 7) == "Bearer ") token = token.substr(7);
@@ -324,6 +357,7 @@ void UserController::cancelDelete(const HttpRequestPtr& req,
             } catch (...) {}
         }
 
+        // 如果没有有效的 token，则通过用户名和密码验证身份
         if (user_id == 0) {
             auto json = req->getJsonObject();
             if (!json || !(*json)["username"].isString() || !(*json)["password"].isString()) {
@@ -368,6 +402,7 @@ void UserController::cancelDelete(const HttpRequestPtr& req,
             MySQLClient::instance().release(std::move(conn));
         }
 
+        // 恢复账号为活跃状态，设置 cancel_delete_until（3 天内不可再次申请注销）
         auto conn = MySQLClient::instance().acquire();
         auto upd = conn->prepareStatement(
             "UPDATE users SET status = 'active', deleted_at = NULL, "
@@ -390,6 +425,10 @@ void UserController::cancelDelete(const HttpRequestPtr& req,
     }
 }
 
+// generateError
+// 功能：生成错误响应 JSON 字符串
+// 参数：code - 错误状态码；message - 错误信息
+// 返回值：string - JSON 格式的错误响应字符串
 std::string UserController::generateError(int code, const std::string& message) {
     Json::Value result;
     result["code"] = code;
@@ -397,6 +436,10 @@ std::string UserController::generateError(int code, const std::string& message) 
     return result.toStyledString();
 }
 
+// generateSuccess
+// 功能：生成成功响应 JSON 字符串
+// 参数：message - 成功信息
+// 返回值：string - JSON 格式的成功响应字符串
 std::string UserController::generateSuccess(const std::string& message) {
     Json::Value result;
     result["code"] = 200;

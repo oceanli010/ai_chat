@@ -1,10 +1,17 @@
 #include "AuthMiddleware.h"
 
+// invoke
+// 功能：中间件入口，执行 Token 验证、CSRF 来源检查和封禁校验
+// 参数：req - HTTP 请求对象；nextCb - 放行回调；mcb - 拦截回调
+// 说明：处理流程依次为——①公共路径直接放行；②POST/PUT/DELETE 请求校验 Origin 来源；
+//       ③验证 Authorization 头部 JWT Token；④检查用户是否被封禁；⑤检查会话是否存在；
+//       ⑥验证通过后在请求头注入用户信息；⑦管理员接口校验角色权限
 void AuthMiddleware::invoke(const drogon::HttpRequestPtr& req,
                              drogon::MiddlewareNextCallback&& nextCb,
                              drogon::MiddlewareCallback&& mcb) {
     auto path = req->path();
 
+    // 公共路径列表，这些路径不需要认证即可访问
     static const std::vector<std::string> public_paths = {
         "/api/auth/send-code",
         "/api/auth/verify-code",
@@ -31,6 +38,7 @@ void AuthMiddleware::invoke(const drogon::HttpRequestPtr& req,
         }
     }
 
+    // 对写操作请求（POST/PUT/DELETE）进行 CSRF 来源校验
     auto method = req->method();
     if (method == drogon::Post || method == drogon::Put || method == drogon::Delete) {
         auto origin = req->getHeader("Origin");
@@ -59,6 +67,7 @@ void AuthMiddleware::invoke(const drogon::HttpRequestPtr& req,
         }
     }
 
+    // 从请求头获取 Token
     auto auth_header = req->getHeader("Authorization");
     if (auth_header.empty()) {
         auto resp = drogon::HttpResponse::newHttpResponse();
@@ -68,6 +77,7 @@ void AuthMiddleware::invoke(const drogon::HttpRequestPtr& req,
         return;
     }
 
+    // 去除 "Bearer " 前缀提取纯 Token
     std::string token = auth_header;
     if (token.substr(0, 7) == "Bearer ") {
         token = token.substr(7);
@@ -79,11 +89,13 @@ void AuthMiddleware::invoke(const drogon::HttpRequestPtr& req,
         auto username = data.username;
         auto role = data.role;
 
+        // 检查用户是否被封禁
         if (RedisClient::instance().sismember("banned_users", user_id)) {
             Json::Value ban_data;
             ban_data["banned"] = true;
             ban_data["ban_reason"] = "违反平台规则";
 
+            // 从 Redis 获取封禁详细信息
             std::string ban_info_str = RedisClient::instance().get("banned_info:" + user_id);
             if (!ban_info_str.empty()) {
                 Json::Value ban_info;
@@ -104,6 +116,7 @@ void AuthMiddleware::invoke(const drogon::HttpRequestPtr& req,
                 }
             }
 
+            // 封禁用户强制登出：删除会话并移除在线状态
             auto session_key = "session:" + token;
             RedisClient::instance().del(session_key);
             RedisClient::instance().srem("online_users", user_id);
@@ -120,6 +133,7 @@ void AuthMiddleware::invoke(const drogon::HttpRequestPtr& req,
             return;
         }
 
+        // 检查会话是否在 Redis 中仍有效
         auto session_key = "session:" + token;
         if (!RedisClient::instance().exists(session_key)) {
             auto resp = drogon::HttpResponse::newHttpResponse();
@@ -129,11 +143,13 @@ void AuthMiddleware::invoke(const drogon::HttpRequestPtr& req,
             return;
         }
 
+        // 将用户信息注入请求头，供后续处理器使用
         req->addHeader("X-Token", token);
         req->addHeader("X-User-Id", user_id);
         req->addHeader("X-Username", username);
         req->addHeader("X-User-Role", role);
 
+        // 管理员接口校验：非 admin 角色禁止访问 /api/admin/ 路径
         if (path.find("/api/admin/") == 0 && role != "admin") {
             auto resp = drogon::HttpResponse::newHttpResponse();
             resp->setStatusCode(drogon::k403Forbidden);

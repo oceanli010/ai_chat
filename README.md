@@ -1,6 +1,6 @@
 # AI 聊天室
 
-高性能、实时 AI 聊天服务器，基于现代 C++（Drogon 框架）、MySQL 和 Redis 构建。支持用户认证、AI 智能对话、管理员后台、WebSocket 实时推送通知和公告系统。
+高性能、实时 AI 聊天服务器，基于现代 C++（Drogon 框架）、MySQL 和 Redis 构建。支持用户认证、AI 智能对话、管理员后台、WebSocket 实时推送通知。
 
 ---
 
@@ -21,15 +21,13 @@
 ### 管理员系统
 - **数据统计**：查看注册用户数、在线用户数、总对话数
 - **用户管理**：搜索用户、封禁/解封（可设时长和原因）、强制注销
-- **公告管理**：发布/删除公告，查看已读/未读统计，支持 WebSocket 实时推送
 - **日志查看**：在线查看服务器运行日志，支持级别过滤
 
 ### 通知推送
-- **WebSocket 实时通知**：封禁通知实时推送、公告广播
-- **公告系统**：支持重要/普通级别，已读标记追踪
+- **WebSocket 实时通知**：封禁通知实时推送
 
 ### 安全防护
-- **密码安全**：PBKDF2-HMAC-SHA256 加盐哈希，10 万次迭代
+- **密码安全**：PBKDF2-HMAC-SHA1 加盐哈希，10 万次迭代
 - **身份认证**：JWT Token + Redis 服务端会话验证（7 天有效期）
 - **接口限流**：按 IP 维度限流，防止暴力破解（每 5 分钟 10 次）
 - **SQL 注入防护**：全部使用参数化预编译语句
@@ -41,8 +39,6 @@
 - **聊天记录清理**：自动删除 30 天前的聊天记录（每 60 秒）
 - **验证码清理**：自动清理过期的邮箱验证码
 - **账号清理**：自动删除冷静期已过的注销账号
-- **公告清理**：自动删除 90 天前的自动过期公告（每 6 小时）
-
 ---
 
 ## 技术栈
@@ -50,7 +46,7 @@
 | 组件 | 技术 | 用途 |
 |------|------|------|
 | 后端框架 | [Drogon](https://github.com/drogonframework/drogon) 1.9+ | 高性能异步 HTTP/HTTPS + WebSocket 服务器 |
-| 数据库 | MySQL 8.0+ | 用户、聊天记录、公告等持久化存储 |
+| 数据库 | MySQL 8.0+ | 用户、聊天记录等持久化存储 |
 | 缓存 | Redis 6.0+ | 会话 Token、在线状态、验证码、限流计数 |
 | 日志 | [spdlog](https://github.com/gabime/spdlog) | 多级别文件 + 控制台日志，支持轮转 |
 | 认证 | JWT（自定义实现，HS256） | 无状态 Token 认证（7 天过期） |
@@ -245,19 +241,6 @@ https://localhost:8443
 | POST | `/api/chat/send` | 发送消息并获取 AI 回复 |
 | DELETE | `/api/chat/clear` | 清除全部聊天记录 |
 
-### 公告接口（需登录）
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/announcements` | 获取公告列表（分页，含已读状态） |
-| GET | `/api/announcements/{id}` | 获取公告详情 |
-| PUT | `/api/announcements/{id}/read` | 标记公告为已读 |
-| GET | `/api/announcements/unread-count` | 获取未读公告数 |
-| POST | `/api/admin/announcements` | 发布公告（管理员） |
-| DELETE | `/api/admin/announcements/{id}` | 删除公告（管理员） |
-| POST | `/api/admin/announcements/batch-delete` | 批量删除公告（管理员） |
-| GET | `/api/admin/announcements/{id}/stats` | 查看公告阅读统计（管理员） |
-
 ### 管理员接口（需管理员权限）
 
 | 方法 | 路径 | 说明 |
@@ -369,8 +352,7 @@ https://localhost:8443
 | `users` | 用户账号（用户名、密码哈希、角色、状态、封禁信息） |
 | `chat_messages` | 聊天记录（用户 ID、角色、内容、Token 数） |
 | `email_verifications` | 邮箱验证码（类型：register/reset_password） |
-| `announcements` | 系统公告（标题、内容、级别、自动删除标记） |
-| `announcement_reads` | 公告已读记录（用户-公告 唯一约束） |
+
 
 ### Redis 数据结构
 
@@ -409,7 +391,6 @@ ai_chat/
 │   │   ├── ChatController.h/cpp      # AI 聊天
 │   │   ├── UserController.h/cpp      # 用户资料、账号注销
 │   │   ├── AdminController.h/cpp     # 管理操作（统计、用户管理、封禁、日志）
-│   │   ├── AnnouncementController.h/cpp  # 公告管理
 │   │   └── NotificationController.h/cpp  # WebSocket 实时通知
 │   ├── database/
 │   │   ├── MySQLClient.h/cpp         # MySQL 连接池
@@ -422,7 +403,7 @@ ai_chat/
 │   └── utils/
 │       ├── Logger.h                  # spdlog 日志封装
 │       ├── JWTUtils.h/cpp            # JWT Token 工具
-│       ├── PasswordHasher.h/cpp      # PBKDF2 密码哈希
+│       ├── PasswordHasher.h/cpp      # PBKDF2-HMAC-SHA1 密码哈希
 │       ├── IDGenerator.h/cpp         # 雪花算法 ID 生成器
 │       ├── EmailSender.h/cpp         # SMTP 邮件发送
 │       └── Validator.h               # 输入验证工具

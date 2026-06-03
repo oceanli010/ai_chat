@@ -13,11 +13,15 @@
 #include "controllers/ChatController.h"
 #include "controllers/AdminController.h"
 #include "controllers/NotificationController.h"
-#include "controllers/AnnouncementController.h"
 #include "middleware/AuthMiddleware.h"
 
 using namespace drogon;
 
+// loadConfig
+// 功能：从配置文件路径读取并解析 JSON 格式的配置
+// 参数：config_path - 配置文件路径
+// 返回值：Json::Value - 解析后的 JSON 配置对象
+// 说明：文件打开或解析失败时直接退出程序
 Json::Value loadConfig(const std::string& config_path) {
     std::ifstream file(config_path);
     if (!file.is_open()) {
@@ -35,6 +39,10 @@ Json::Value loadConfig(const std::string& config_path) {
     return config;
 }
 
+// initAdminAccount
+// 功能：检查并创建初始管理员账号（若不存在）
+// 参数：config - 服务器配置对象，从中读取管理员用户名和密码
+// 说明：使用预置密码生成哈希和加盐后写入数据库，角色固定为 admin
 void initAdminAccount(const Json::Value& config) {
     std::string admin_username = config["admin"]["username"].asString();
     std::string admin_password = config["admin"]["password"].asString();
@@ -68,6 +76,9 @@ void initAdminAccount(const Json::Value& config) {
     }
 }
 
+// scheduleCleanupTask
+// 功能：注册定时清理任务，每 60 秒执行一次
+// 说明：清理任务包含——①删除 30 天前的聊天记录；②删除过期的邮箱验证码；③删除冷却期已到的待注销账号
 void scheduleCleanupTask() {
     app().getLoop()->runEvery(60.0, []() {
         auto now = std::chrono::system_clock::now();
@@ -77,17 +88,20 @@ void scheduleCleanupTask() {
         try {
             auto conn = MySQLClient::instance().acquire();
 
+            // 清理 30 天前的聊天消息
             auto stmt = conn->prepareStatement(
                 "DELETE FROM chat_messages WHERE created_at < "
                 "DATE_SUB(NOW(), INTERVAL 30 DAY)");
             int deleted = stmt->executeUpdate();
             if (deleted > 0) APP_LOG_INFO("Cleaned {} old chat messages", deleted);
 
+            // 清理已过期的邮箱验证码
             auto ver_stmt = conn->prepareStatement(
                 "DELETE FROM email_verifications WHERE expires_at < NOW()");
             int ver_deleted = ver_stmt->executeUpdate();
             if (ver_deleted > 0) APP_LOG_INFO("Cleaned {} expired verification codes", ver_deleted);
 
+            // 查询并删除冷却期已过的待注销账号
             auto pend_stmt = conn->prepareStatement(
                 "SELECT id FROM users WHERE status = 'pending_deletion' AND deleted_at <= NOW()");
             auto pend_res = pend_stmt->executeQuery();
@@ -106,22 +120,13 @@ void scheduleCleanupTask() {
     });
 }
 
-void scheduleAnnouncementCleanup() {
-    app().getLoop()->runEvery(21600.0, []() {
-        try {
-            auto conn = MySQLClient::instance().acquire();
-            auto stmt = conn->prepareStatement(
-                "DELETE FROM announcements WHERE auto_delete = 1 "
-                "AND created_at < DATE_SUB(NOW(), INTERVAL 90 DAY)");
-            int deleted = stmt->executeUpdate();
-            if (deleted > 0) APP_LOG_INFO("Cleaned {} old announcements", deleted);
-            conn.reset();
-        } catch (const std::exception& e) {
-            APP_LOG_ERROR("Announcement cleanup error: {}", e.what());
-        }
-    });
-}
-
+// main
+// 功能：AI Chat 服务器主入口，完成配置加载、数据库初始化、中间件注册和 HTTP 服务启动
+// 参数：argc - 命令行参数个数；argv - 命令行参数数组
+// 返回值：int - 程序退出码
+// 说明：启动流程依次为——①加载配置文件；②初始化日志系统；③初始化 MySQL 和 Redis 连接池；
+//       ④创建管理员账号；⑤初始化 JWT 密钥；⑥配置邮件发送器和 AI 接口参数；
+//       ⑦注册定时清理任务；⑧配置 HTTPS/HTTP 监听、线程数和安全策略；⑨启动 Drogon 事件循环
 int main(int argc, char* argv[]) {
     std::string config_path = "config/config.json";
     if (argc > 1) {
@@ -130,6 +135,7 @@ int main(int argc, char* argv[]) {
 
     auto config = loadConfig(config_path);
 
+    // 初始化日志系统
     auto& log_cfg = config["log"];
     Logger::init(log_cfg["file"].asString(),
                  log_cfg["level"].asString(),
@@ -138,6 +144,7 @@ int main(int argc, char* argv[]) {
 
     APP_LOG_INFO("Starting AI Chat server...");
 
+    // 初始化 MySQL 连接池
     auto& mysql_cfg = config["database"]["mysql"];
     MySQLClient::instance().init(
         mysql_cfg["host"].asString(),
@@ -147,6 +154,7 @@ int main(int argc, char* argv[]) {
         mysql_cfg["database"].asString(),
         mysql_cfg["pool_size"].asInt());
 
+    // 初始化 Redis 连接
     auto& redis_cfg = config["database"]["redis"];
     RedisClient::instance().init(
         redis_cfg["host"].asString(),
@@ -156,6 +164,7 @@ int main(int argc, char* argv[]) {
 
     initAdminAccount(config);
 
+    // 初始化 JWT 密钥（配置中为空时自动生成随机密钥）
     auto jwt_secret = config["server"]["jwt_secret"].asString();
     if (jwt_secret.empty()) {
         std::random_device rd;
@@ -170,6 +179,7 @@ int main(int argc, char* argv[]) {
     }
     JWTUtils::init(jwt_secret);
 
+    // 配置邮件发送器
     auto email_cfg = config["email"];
     if (!email_cfg["username"].asString().empty()) {
         auto email_sender = std::make_shared<EmailSender>(
@@ -185,14 +195,16 @@ int main(int argc, char* argv[]) {
         APP_LOG_WARN("Email not configured, verification codes will be logged only");
     }
 
+    // 配置 AI 接口参数
     auto& ai_cfg = config["ai"];
     ChatController::setAIAPIUrl(ai_cfg["api_url"].asString());
     ChatController::setAIAPIKey(ai_cfg["api_key"].asString());
     ChatController::setAIModel(ai_cfg["model"].asString());
 
+    // 注册定时清理任务
     scheduleCleanupTask();
-    scheduleAnnouncementCleanup();
 
+    // 配置 HTTP/HTTPS 监听和线程数
     auto& server_cfg = config["server"];
     bool use_https = server_cfg.isMember("enable_https") && server_cfg["enable_https"].asBool();
     if (use_https) {
@@ -215,6 +227,7 @@ int main(int argc, char* argv[]) {
     app().setLogPath("logs/");
     app().setLogLevel(trantor::Logger::kInfo);
 
+    // 注册全局响应头：Content-Security-Policy 安全策略
     app().registerPostHandlingAdvice([](const HttpRequestPtr& req, const HttpResponsePtr& resp) {
         (void)req;
         resp->addHeader("Content-Security-Policy",

@@ -2,15 +2,26 @@
 
 std::string JWTUtils::secret_ = "";
 
+// init
+// 功能：设置 JWT 签名密钥
+// 参数：secret - HMAC-SHA256 签名用的密钥字符串
+// 返回值：无
 void JWTUtils::init(const std::string& secret) {
     secret_ = secret;
 }
 
+// generate_token
+// 功能：生成 JWT Token，有效期 7 天
+// 参数：user_id - 用户 ID
+//       username - 用户名
+//       role - 用户角色
+// 返回值：string - JWT 格式的 Token（header.payload.signature）
+// 说明：header 使用 HS256 算法，payload 包含 iss/sub/iat/exp/username/role
 std::string JWTUtils::generate_token(uint64_t user_id,
                                       const std::string& username,
                                       const std::string& role) {
     auto now = std::chrono::system_clock::now();
-    auto exp = now + std::chrono::hours(24 * 7);
+    auto exp = now + std::chrono::hours(24 * 7); // 过期时间为当前时间 + 7 天
     auto now_ts = std::chrono::duration_cast<std::chrono::seconds>(
         now.time_since_epoch()).count();
     auto exp_ts = std::chrono::duration_cast<std::chrono::seconds>(
@@ -34,6 +45,11 @@ std::string JWTUtils::generate_token(uint64_t user_id,
     return signing_input + "." + signature;
 }
 
+// verify_token
+// 功能：验证 JWT Token 的签名和有效期
+// 参数：token - JWT 字符串
+// 返回值：TokenData - 包含 user_id / username / role 的结构体
+// 说明：验证失败或 Token 过期时抛 runtime_error 异常
 JWTUtils::TokenData JWTUtils::verify_token(const std::string& token) {
     TokenData data;
 
@@ -54,6 +70,7 @@ JWTUtils::TokenData JWTUtils::verify_token(const std::string& token) {
     try {
         json payload = json::parse(payload_str);
 
+        // 检查 Token 是否过期
         auto now = std::chrono::duration_cast<std::chrono::seconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
 
@@ -71,6 +88,11 @@ JWTUtils::TokenData JWTUtils::verify_token(const std::string& token) {
     return data;
 }
 
+// base64url_encode
+// 功能：将输入字符串进行 Base64 URL 编码（RFC 4648 §5）
+// 参数：input - 待编码的原字符串
+// 返回值：string - 编码后的字符串（不含填充字符 =）
+// 说明：使用 -_ 替代 +/ 以确保 URL 安全
 std::string JWTUtils::base64url_encode(const std::string& input) {
     static const char* chars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -98,10 +120,16 @@ std::string JWTUtils::base64url_encode(const std::string& input) {
     return result;
 }
 
+// base64url_decode
+// 功能：将 Base64 URL 编码的字符串解码为原字符串
+// 参数：input - Base64 URL 编码的字符串
+// 返回值：string - 解码后的原字符串
+// 说明：支持忽略非 Base64 字符
 std::string JWTUtils::base64url_decode(const std::string& input) {
     static const std::string chars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
+    // 构建反向查找表（字符 -> 索引值）
     std::vector<int> table(256, -1);
     for (size_t i = 0; i < 64; ++i) {
         table[static_cast<unsigned char>(chars[i])] = i;
@@ -117,12 +145,14 @@ std::string JWTUtils::base64url_decode(const std::string& input) {
         }
     }
 
+    // 每 4 个 6-bit 值解码为 3 个字节
     for (size_t i = 0; i + 3 < buf.size(); i += 4) {
         result += (buf[i] << 2) | (buf[i + 1] >> 4);
         result += (buf[i + 1] << 4) | (buf[i + 2] >> 2);
         result += (buf[i + 2] << 6) | buf[i + 3];
     }
 
+    // 处理剩余字节（不足 4 的倍数）
     if (buf.size() % 4 == 3) {
         result += (buf[buf.size() - 3] << 2) | (buf[buf.size() - 2] >> 4);
         result += (buf[buf.size() - 2] << 4) | (buf[buf.size() - 1] >> 2);
@@ -133,6 +163,11 @@ std::string JWTUtils::base64url_decode(const std::string& input) {
     return result;
 }
 
+// hmac_sha256
+// 功能：使用 HMAC-SHA256 算法对数据进行签名
+// 参数：data - 待签名的数据
+//       key - HMAC 密钥
+// 返回值：string - 十六进制字符串格式的 HMAC 签名
 std::string JWTUtils::hmac_sha256(const std::string& data,
                                    const std::string& key) {
     unsigned char result[EVP_MAX_MD_SIZE];
@@ -151,6 +186,11 @@ std::string JWTUtils::hmac_sha256(const std::string& data,
     return sig;
 }
 
+// split
+// 功能：按指定分隔符拆分字符串
+// 参数：str - 待拆分的字符串
+//       delimiter - 分隔符字符
+// 返回值：vector<string> - 拆分后的子串列表
 std::vector<std::string> JWTUtils::split(const std::string& str,
                                            char delimiter) {
     std::vector<std::string> parts;

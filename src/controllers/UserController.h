@@ -11,6 +11,8 @@
 
 using namespace drogon;
 
+// UserController
+// 功能：处理用户个人中心相关的业务逻辑，包括资料管理、密码修改和账号注销
 class UserController : public HttpController<UserController> {
 public:
     METHOD_LIST_BEGIN
