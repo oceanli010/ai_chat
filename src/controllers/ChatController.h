@@ -11,6 +11,8 @@
 
 using namespace drogon;
 
+// ChatController
+// 功能：处理用户与 AI 聊天相关的业务逻辑，包括消息收发和历史记录管理
 class ChatController : public HttpController<ChatController> {
 public:
     METHOD_LIST_BEGIN
@@ -35,9 +37,9 @@ public:
     static void setAIModel(const std::string& model);
 
 private:
-    static std::string ai_api_url_;
-    static std::string ai_api_key_;
-    static std::string ai_model_;
+    static std::string ai_api_url_; // AI 服务的 API 地址
+    static std::string ai_api_key_; // AI 服务的 API 密钥
+    static std::string ai_model_;   // AI 模型名称
 
     static std::string generateError(int code, const std::string& message);
     static std::string generateSuccess(const std::string& message);

@@ -14,6 +14,8 @@
 
 using namespace drogon;
 
+// AdminController
+// 功能：处理管理员后台相关的业务逻辑，包括系统统计、用户管理、日志查看等
 class AdminController : public HttpController<AdminController> {
 public:
     METHOD_LIST_BEGIN
@@ -46,7 +48,7 @@ public:
     static void setEmailSender(std::shared_ptr<EmailSender> sender);
 
 private:
-    static std::shared_ptr<EmailSender> email_sender_;
+    static std::shared_ptr<EmailSender> email_sender_; // 邮件发送器实例，用于发送用户通知邮件
 
     static std::string generateError(int code, const std::string& message);
     static std::string generateSuccess(const std::string& message);

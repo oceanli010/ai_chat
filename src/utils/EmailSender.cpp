@@ -7,6 +7,14 @@
 // 构造 / 析构
 // ============================================================
 
+// EmailSender（构造函数）
+// 功能：初始化 SMTP 邮件发送器，保存服务器连接参数
+// 参数：smtp_host - SMTP 服务器主机名
+//       smtp_port - SMTP 服务器端口
+//       username - SMTP 认证用户名
+//       password - SMTP 认证密码
+//       from_address - 发件人邮箱地址
+// 返回值：无
 EmailSender::EmailSender(const std::string& smtp_host,
                          int smtp_port,
                          const std::string& username,
@@ -23,6 +31,11 @@ EmailSender::EmailSender(const std::string& smtp_host,
 // 高层发送接口
 // ============================================================
 
+// send_verification_code
+// 功能：发送邮箱验证码邮件，验证码 5 分钟有效
+// 参数：to_email - 收件人邮箱地址
+//       code - 6 位数字验证码
+// 返回值：bool - true 表示发送成功
 bool EmailSender::send_verification_code(const std::string& to_email,
                                           const std::string& code) {
     std::string subject = "AI聊天室 - 邮箱验证码";
@@ -34,6 +47,12 @@ bool EmailSender::send_verification_code(const std::string& to_email,
     return send_email(to_email, subject, body);
 }
 
+// send_delete_account_code
+// 功能：发送账号注销验证码邮件，验证码 10 分钟有效
+// 参数：to_email - 收件人邮箱地址
+//       code - 6 位数字验证码
+// 返回值：bool - true 表示发送成功
+// 说明：邮件内容包含注销风险提示
 bool EmailSender::send_delete_account_code(const std::string& to_email,
                                             const std::string& code) {
     std::string subject = "AI聊天室 - 账号注销验证";
@@ -46,6 +65,11 @@ bool EmailSender::send_delete_account_code(const std::string& to_email,
     return send_email(to_email, subject, body);
 }
 
+// send_account_deleted_notification
+// 功能：管理员强制注销账号后发送通知邮件
+// 参数：to_email - 收件人邮箱地址
+//       admin_name - 执行注销的管理员用户名
+// 返回值：bool - true 表示发送成功
 bool EmailSender::send_account_deleted_notification(const std::string& to_email,
                                                      const std::string& admin_name) {
     std::string subject = "AI聊天室 - 账号已被管理员注销";
@@ -63,25 +87,32 @@ bool EmailSender::send_account_deleted_notification(const std::string& to_email,
 // 核心发送逻辑（libcurl SMTP）
 // ============================================================
 
+// send_email
+// 功能：通过 libcurl SMTP API 发送符合 RFC 2822 的邮件
+// 参数：to - 收件人邮箱地址
+//       subject - 邮件主题
+//       body - 邮件正文
+// 返回值：bool - true 表示发送成功
+// 说明：端口 465 使用隐式 TLS（smtps://），端口 587 使用 STARTTLS
 bool EmailSender::send_email(const std::string& to,
                               const std::string& subject,
                               const std::string& body) {
     try {
-        // ---- RAII 创建 CURL 句柄 ----
+        // RAII 创建 CURL 句柄
         CurlHandle curl;
 
-        // ---- RAII 创建收件人列表 ----
+        // RAII 创建收件人列表
         CurlSlist recipients;
         recipients.append(to);
 
-        // ---- 构造邮件 payload ----
+        // 构造邮件 payload
         std::string payload = build_mail_payload(from_address_, to, subject, body);
         PayloadContext ctx(std::move(payload));
 
-        // ---- 详细错误信息缓冲区 ----
+        // 详细错误信息缓冲区
         char errbuf[CURL_ERROR_SIZE] = {0};
 
-        // ---- 配置 SMTP（端口 465→smtps:// 隐式TLS，端口 587→smtp://+STARTTLS） ----
+        // 配置 SMTP 协议：端口 465 使用 smtps://（隐式 TLS），端口 587 使用 smtp://+STARTTLS
         bool use_implicit_tls = (smtp_port_ == 465);
         std::string protocol = use_implicit_tls ? "smtps://" : "smtp://";
 
@@ -110,7 +141,7 @@ bool EmailSender::send_email(const std::string& to,
             curl_easy_setopt(curl, CURLOPT_USE_SSL,     CURLUSESSL_ALL);
         }
 
-        APP_LOG_INFO("Sending email to {} via {}…", to, url);
+        APP_LOG_INFO("Sending email to {} via {}...", to, url);
 
         CURLcode res = curl_easy_perform(curl);
 
@@ -134,6 +165,12 @@ bool EmailSender::send_email(const std::string& to,
 // libcurl CURLOPT_READFUNCTION 回调
 // ============================================================
 
+// payload_source
+// 功能：libcurl 回调函数，将邮件 payload 分块提供给 libcurl
+// 参数：ptr - 输出缓冲区指针
+//       size * nmemb - 缓冲区可写入的字节数
+//       userdata - PayloadContext 指针
+// 返回值：size_t - 实际写入的字节数，0 表示数据已全部发送
 size_t EmailSender::payload_source(char* ptr, size_t size, size_t nmemb,
                                     void* userdata) {
     auto* ctx = static_cast<PayloadContext*>(userdata);
@@ -154,6 +191,13 @@ size_t EmailSender::payload_source(char* ptr, size_t size, size_t nmemb,
 // 构造 RFC 2822 邮件 payload
 // ============================================================
 
+// build_mail_payload
+// 功能：构造符合 RFC 2822 标准的完整邮件内容（headers + body）
+// 参数：from - 发件人地址
+//       to - 收件人地址
+//       subject - 邮件主题
+//       body - 邮件正文（纯文本，UTF-8 编码）
+// 返回值：string - 完整的邮件字符串（含 CRLF 行结束符）
 std::string EmailSender::build_mail_payload(const std::string& from,
                                              const std::string& to,
                                              const std::string& subject,
@@ -173,6 +217,11 @@ std::string EmailSender::build_mail_payload(const std::string& from,
     return oss.str();
 }
 
+// get_current_time_string
+// 功能：获取当前 GMT 时间的字符串格式，用于 SMTP Date 头
+// 参数：无
+// 返回值：string - 符合 RFC 2822 格式的时间字符串
+// 说明：使用 GMT 时区而非本地时区
 std::string EmailSender::get_current_time_string() {
     auto now = std::chrono::system_clock::now();
     auto t   = std::chrono::system_clock::to_time_t(now);

@@ -2,6 +2,9 @@
 
 MySQLClient::MySQLClient() : driver_(nullptr), port_(3306), pool_size_(10) {}
 
+// create_connection
+// 功能：创建一条新的 MySQL 数据库连接
+// 返回值：std::unique_ptr<sql::Connection> - 新连接，创建失败返回 nullptr
 std::unique_ptr<sql::Connection> MySQLClient::create_connection() {
     try {
         auto conn = std::unique_ptr<sql::Connection>(
@@ -15,6 +18,10 @@ std::unique_ptr<sql::Connection> MySQLClient::create_connection() {
     }
 }
 
+// init
+// 功能：初始化数据库连接池，根据配置创建指定数量的连接
+// 参数：host - 数据库主机地址；port - 端口号；user - 用户名；password - 密码；database - 数据库名称；pool_size - 连接池大小
+// 说明：若连接池为空（初始化失败），记录警告日志
 void MySQLClient::init(const std::string& host,
                         int port,
                         const std::string& user,
@@ -44,6 +51,11 @@ void MySQLClient::init(const std::string& host,
     }
 }
 
+// acquire
+// 功能：从连接池获取一个数据库连接
+// 返回值：std::unique_ptr<sql::Connection> - 获取到的连接
+// 说明：连接池为空时等待最多 10 秒；若超时则尝试创建新连接。获取连接后检查有效性，
+//       无效连接自动重建。重试最多 3 次，全部失败则抛出异常
 std::unique_ptr<sql::Connection> MySQLClient::acquire() {
     std::unique_lock<std::mutex> lock(mutex_);
     while (pool_.empty()) {
@@ -82,6 +94,10 @@ std::unique_ptr<sql::Connection> MySQLClient::acquire() {
     return conn;
 }
 
+// release
+// 功能：将数据库连接归还到连接池
+// 参数：conn - 待归还的连接
+// 说明：检查连接有效性，有效则直接入队；无效则丢弃并补充一个新连接
 void MySQLClient::release(std::unique_ptr<sql::Connection> conn) {
     if (!conn) return;
     bool valid = false;

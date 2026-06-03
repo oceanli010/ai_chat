@@ -4,6 +4,10 @@ std::string ChatController::ai_api_url_ = "https://api.openai.com/v1/chat/comple
 std::string ChatController::ai_api_key_ = "";
 std::string ChatController::ai_model_ = "gpt-3.5-turbo";
 
+// getUserIdFromToken
+// 功能：从 HTTP 请求的 Authorization 头中解析 JWT token 并提取用户 ID
+// 参数：req - HTTP 请求对象
+// 返回值：uint64_t - 用户 ID
 uint64_t ChatController::getUserIdFromToken(const HttpRequestPtr& req) {
     auto auth = req->getHeader("Authorization");
     if (auth.substr(0, 7) == "Bearer ") auth = auth.substr(7);
@@ -11,10 +15,15 @@ uint64_t ChatController::getUserIdFromToken(const HttpRequestPtr& req) {
     return data.user_id;
 }
 
+// getHistory
+// 功能：获取当前用户的聊天历史记录
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：支持分页查询，按时间升序排列
 void ChatController::getHistory(const HttpRequestPtr& req,
                                  std::function<void(const HttpResponsePtr&)>&& callback) {
     uint64_t user_id = getUserIdFromToken(req);
 
+    // 解析分页参数，默认第 1 页每页 200 条
     int page = 1;
     int page_size = 200;
     auto param = req->getParameter("page");
@@ -27,6 +36,7 @@ void ChatController::getHistory(const HttpRequestPtr& req,
     try {
         auto conn = MySQLClient::instance().acquire();
 
+        // 查询总消息数
         auto count_stmt = conn->prepareStatement(
             "SELECT COUNT(*) FROM chat_messages WHERE user_id = ?");
         count_stmt->setUInt64(1, user_id);
@@ -34,6 +44,7 @@ void ChatController::getHistory(const HttpRequestPtr& req,
         count_res->next();
         int total = count_res->getInt(1);
 
+        // 分页查询聊天记录，按时间升序
         auto stmt = conn->prepareStatement(
             "SELECT id, role, content, token_count, created_at "
             "FROM chat_messages WHERE user_id = ? "
@@ -76,6 +87,10 @@ void ChatController::getHistory(const HttpRequestPtr& req,
     }
 }
 
+// sendMessage
+// 功能：发送用户消息并获取 AI 回复
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：将用户消息存入数据库，调用 AI API 获取回复后异步保存并返回
 void ChatController::sendMessage(const HttpRequestPtr& req,
                                   std::function<void(const HttpResponsePtr&)>&& callback) {
     auto json = req->getJsonObject();
@@ -96,6 +111,7 @@ void ChatController::sendMessage(const HttpRequestPtr& req,
         return;
     }
 
+    // 消息长度限制 2000 字
     if (content.length() > 2000) {
         auto resp = HttpResponse::newHttpResponse();
         resp->setBody(generateError(400, "消息内容不能超过2000字"));
@@ -103,19 +119,23 @@ void ChatController::sendMessage(const HttpRequestPtr& req,
         return;
     }
 
+    // 使用 shared_ptr 包装回调，以便在异步请求中安全使用
     auto cb_ptr = std::make_shared<std::function<void(const HttpResponsePtr&)>>(std::move(callback));
 
     try {
         auto conn = MySQLClient::instance().acquire();
 
+        // 保存用户消息到数据库
         auto stmt = conn->prepareStatement(
             "INSERT INTO chat_messages (user_id, role, content) VALUES (?, 'user', ?)");
         stmt->setUInt64(1, user_id);
         stmt->setString(2, content);
         stmt->executeUpdate();
 
+        // 使用 shared_ptr 管理数据库连接，以便在异步回调中释放
         auto conn_ptr = std::make_shared<std::unique_ptr<sql::Connection>>(std::move(conn));
 
+        // 构建 AI API 请求
         auto client = HttpClient::newHttpClient(ai_api_url_);
         auto ai_req = HttpRequest::newHttpRequest();
         ai_req->setPath("/v1/chat/completions");
@@ -133,6 +153,7 @@ void ChatController::sendMessage(const HttpRequestPtr& req,
         body["messages"] = msgs;
         ai_req->setBody(body.toStyledString());
 
+        // 发送异步 AI 请求，超时 30 秒
         client->sendRequest(ai_req, [cb_ptr, conn_ptr, user_id](ReqResult result, const HttpResponsePtr& response) {
             if (result != ReqResult::Ok || !response) {
                 MySQLClient::instance().release(std::move(*conn_ptr));
@@ -142,6 +163,7 @@ void ChatController::sendMessage(const HttpRequestPtr& req,
                 return;
             }
 
+            // 解析 AI 回复内容
             auto resp_json = response->getJsonObject();
             std::string ai_reply;
             if (resp_json && (*resp_json)["choices"].isArray() && (*resp_json)["choices"].size() > 0) {
@@ -152,12 +174,14 @@ void ChatController::sendMessage(const HttpRequestPtr& req,
 
             try {
                 auto& conn = *conn_ptr;
+                // 保存 AI 回复到数据库
                 auto ai_stmt = conn->prepareStatement(
                     "INSERT INTO chat_messages (user_id, role, content) VALUES (?, 'assistant', ?)");
                 ai_stmt->setUInt64(1, user_id);
                 ai_stmt->setString(2, ai_reply);
                 ai_stmt->executeUpdate();
 
+                // 更新用户的总聊天次数
                 auto update = conn->prepareStatement(
                     "UPDATE users SET total_chats = total_chats + 1 WHERE id = ?");
                 update->setUInt64(1, user_id);
@@ -187,6 +211,9 @@ void ChatController::sendMessage(const HttpRequestPtr& req,
     }
 }
 
+// clearHistory
+// 功能：清空当前用户的所有聊天记录
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
 void ChatController::clearHistory(const HttpRequestPtr& req,
                                    std::function<void(const HttpResponsePtr&)>&& callback) {
     uint64_t user_id = getUserIdFromToken(req);
@@ -217,6 +244,10 @@ void ChatController::setAIAPIUrl(const std::string& url) { ai_api_url_ = url; }
 void ChatController::setAIAPIKey(const std::string& key) { ai_api_key_ = key; }
 void ChatController::setAIModel(const std::string& model) { ai_model_ = model; }
 
+// generateError
+// 功能：生成错误响应 JSON 字符串
+// 参数：code - 错误状态码；message - 错误信息
+// 返回值：string - JSON 格式的错误响应字符串
 std::string ChatController::generateError(int code, const std::string& message) {
     Json::Value result;
     result["code"] = code;
@@ -224,6 +255,10 @@ std::string ChatController::generateError(int code, const std::string& message) 
     return result.toStyledString();
 }
 
+// generateSuccess
+// 功能：生成成功响应 JSON 字符串
+// 参数：message - 成功信息
+// 返回值：string - JSON 格式的成功响应字符串
 std::string ChatController::generateSuccess(const std::string& message) {
     Json::Value result;
     result["code"] = 200;

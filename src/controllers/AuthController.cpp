@@ -2,12 +2,20 @@
 
 std::shared_ptr<EmailSender> AuthController::email_sender_ = nullptr;
 
+// setEmailSender
+// 功能：设置全局邮件发送器实例
+// 参数：sender - 邮件发送器的共享指针
 void AuthController::setEmailSender(std::shared_ptr<EmailSender> sender) {
     email_sender_ = sender;
 }
 
+// sendCode
+// 功能：发送邮箱验证码（注册或重置密码）
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：包含 IP 级别频率限制（5 分钟内最多 10 次），验证码有效期 5 分钟
 void AuthController::sendCode(const HttpRequestPtr& req,
                                std::function<void(const HttpResponsePtr&)>&& callback) {
+    // IP 级别频率限制，5 分钟内最多 10 次
     std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
     auto attempts = RedisClient::instance().incr(rate_key);
     if (attempts == 1) RedisClient::instance().expire(rate_key, 300);
@@ -32,6 +40,7 @@ void AuthController::sendCode(const HttpRequestPtr& req,
 
     std::string code = generateVerificationCode();
     std::string redis_key = std::string("verify_code:") + email + ":" + type;
+    // 将验证码存入 Redis，有效期 5 分钟
     RedisClient::instance().setex(redis_key, 300, code);
 
     bool email_sent = false;
@@ -46,6 +55,10 @@ void AuthController::sendCode(const HttpRequestPtr& req,
     callback(resp);
 }
 
+// sendDeleteCode
+// 功能：发送账号注销验证码到用户注册邮箱
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：需要用户已登录，验证码有效期 10 分钟，包含 IP 级别频率限制
 void AuthController::sendDeleteCode(const HttpRequestPtr& req,
                                      std::function<void(const HttpResponsePtr&)>&& callback) {
     std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
@@ -74,6 +87,7 @@ void AuthController::sendDeleteCode(const HttpRequestPtr& req,
 
         std::string code = generateVerificationCode();
         std::string redis_key = std::string("verify_code:") + email + ":delete_account";
+        // 注销验证码有效期 10 分钟
         RedisClient::instance().setex(redis_key, 600, code);
 
         if (email_sender_) {
@@ -92,6 +106,10 @@ void AuthController::sendDeleteCode(const HttpRequestPtr& req,
     }
 }
 
+// registerUser
+// 功能：用户注册
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：需要邮箱验证码，校验用户名和密码格式，使用分布式 ID 生成器创建用户 ID，密码加盐哈希存储
 void AuthController::registerUser(const HttpRequestPtr& req,
                                    std::function<void(const HttpResponsePtr&)>&& callback) {
     std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
@@ -132,6 +150,7 @@ void AuthController::registerUser(const HttpRequestPtr& req,
         return;
     }
 
+    // 校验验证码
     std::string redis_key = std::string("verify_code:") + email + ":register";
     std::string stored_code = RedisClient::instance().get(redis_key);
 
@@ -142,11 +161,13 @@ void AuthController::registerUser(const HttpRequestPtr& req,
         return;
     }
 
+    // 验证码使用后立即删除，防止重复使用
     RedisClient::instance().del(redis_key);
 
     try {
         auto conn = MySQLClient::instance().acquire();
 
+        // 检查邮箱或用户名是否已被注册
         auto check = conn->prepareStatement(
             "SELECT COUNT(*) FROM users WHERE email = ? OR username = ?");
         check->setString(1, email);
@@ -163,6 +184,7 @@ void AuthController::registerUser(const HttpRequestPtr& req,
 
         uint64_t user_id = IDGenerator::instance().generate();
         std::string password_hash, password_salt;
+        // 生成密码哈希和盐值
         PasswordHasher::generate_hash_and_salt(password, password_hash, password_salt);
 
         auto stmt = conn->prepareStatement(
@@ -194,6 +216,10 @@ void AuthController::registerUser(const HttpRequestPtr& req,
     }
 }
 
+// login
+// 功能：用户登录
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：支持邮箱或用户名登录，校验密码后生成 JWT token，记录在线状态和会话信息
 void AuthController::login(const HttpRequestPtr& req,
                             std::function<void(const HttpResponsePtr&)>&& callback) {
     std::string rate_key = "rate_limit:" + std::string(__func__) + ":" + req->getPeerAddr().toIp();
@@ -214,6 +240,7 @@ void AuthController::login(const HttpRequestPtr& req,
     try {
         auto conn = MySQLClient::instance().acquire();
 
+        // 自动检测使用邮箱还是用户名登录
         bool is_email = credential.find('@') != std::string::npos;
 
         auto stmt = conn->prepareStatement(
@@ -236,6 +263,7 @@ void AuthController::login(const HttpRequestPtr& req,
         std::string password_salt = res->getString("password_salt");
         std::string status = res->getString("status");
 
+        // 处理账号处于注销冷静期的登录拦截
         if (status == "pending_deletion") {
             MySQLClient::instance().release(std::move(conn));
             Json::Value result;
@@ -248,6 +276,7 @@ void AuthController::login(const HttpRequestPtr& req,
             return;
         }
 
+        // 处理账号被封禁的情况，返回封禁剩余时间
         if (status == "banned") {
             Json::Value ban_data;
             std::string ban_expires_str;
@@ -287,6 +316,7 @@ void AuthController::login(const HttpRequestPtr& req,
             return;
         }
 
+        // 验证密码
         if (!PasswordHasher::verify_password(password, password_salt, password_hash)) {
             MySQLClient::instance().release(std::move(conn));
             auto resp = HttpResponse::newHttpResponse();
@@ -302,8 +332,10 @@ void AuthController::login(const HttpRequestPtr& req,
 
         MySQLClient::instance().release(std::move(conn));
 
+        // 生成 JWT token，有效期 7 天
         std::string token = JWTUtils::generate_token(user_id, username, role);
 
+        // 保存会话信息到 Redis
         Json::Value session_data;
         session_data["user_id"] = user_id;
         session_data["username"] = username;
@@ -311,6 +343,7 @@ void AuthController::login(const HttpRequestPtr& req,
         RedisClient::instance().setex("session:" + token, 86400 * 7,
                                        session_data.toStyledString());
 
+        // 记录在线用户和用户会话列表
         RedisClient::instance().sadd("online_users", std::to_string(user_id));
         RedisClient::instance().sadd("user_sessions:" + std::to_string(user_id), token);
 
@@ -334,6 +367,10 @@ void AuthController::login(const HttpRequestPtr& req,
     }
 }
 
+// resetPassword
+// 功能：通过邮箱验证码重置密码
+// 参数：req - HTTP 请求对象；callback - 异步响应回调
+// 说明：需要邮箱验证码，新密码需满足密码格式要求
 void AuthController::resetPassword(const HttpRequestPtr& req,
                                     std::function<void(const HttpResponsePtr&)>&& callback) {
     auto json = req->getJsonObject();
@@ -355,6 +392,7 @@ void AuthController::resetPassword(const HttpRequestPtr& req,
         return;
     }
 
+    // 校验验证码
     std::string redis_key = std::string("verify_code:") + email + ":reset_password";
     std::string stored_code = RedisClient::instance().get(redis_key);
 
@@ -401,6 +439,9 @@ void AuthController::resetPassword(const HttpRequestPtr& req,
     }
 }
 
+// generateVerificationCode
+// 功能：生成 6 位数字验证码
+// 返回值：string - 6 位数字字符串
 std::string AuthController::generateVerificationCode() {
     static thread_local std::mt19937 gen(std::random_device{}());
     std::uniform_int_distribution<int> dist(0, 9);
@@ -411,6 +452,10 @@ std::string AuthController::generateVerificationCode() {
     return code;
 }
 
+// generateError
+// 功能：生成错误响应 JSON 字符串
+// 参数：code - 错误状态码；message - 错误信息
+// 返回值：string - JSON 格式的错误响应字符串
 std::string AuthController::generateError(int code, const std::string& message) {
     Json::Value result;
     result["code"] = code;
@@ -418,6 +463,10 @@ std::string AuthController::generateError(int code, const std::string& message) 
     return result.toStyledString();
 }
 
+// generateSuccess
+// 功能：生成成功响应 JSON 字符串
+// 参数：message - 成功信息
+// 返回值：string - JSON 格式的成功响应字符串
 std::string AuthController::generateSuccess(const std::string& message) {
     Json::Value result;
     result["code"] = 200;
