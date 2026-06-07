@@ -128,7 +128,8 @@ void AuthMiddleware::invoke(const drogon::HttpRequestPtr& req,
 
             auto resp = drogon::HttpResponse::newHttpResponse();
             resp->setStatusCode(drogon::k403Forbidden);
-            resp->setBody(result.toStyledString());
+            Json::FastWriter writer;
+            resp->setBody(writer.write(result));
             mcb(resp);
             return;
         }

@@ -55,8 +55,7 @@ void NotificationController::handleNewConnection(const HttpRequestPtr& req,
 // 参数：conn - WebSocket 连接对象；message - 消息内容；type - 消息类型
 void NotificationController::handleNewMessage(const WebSocketConnectionPtr& conn,
                                                 std::string&& message,
-                                                const WebSocketMessageType& type) {
-}
+                                                const WebSocketMessageType& type) {}
 
 // handleConnectionClosed
 // 功能：处理 WebSocket 连接关闭事件，清理连接映射

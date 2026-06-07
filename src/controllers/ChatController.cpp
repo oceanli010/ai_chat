@@ -21,7 +21,7 @@ uint64_t ChatController::getUserIdFromToken(const HttpRequestPtr& req) {
 // 说明：支持分页查询，按时间升序排列
 void ChatController::getHistory(const HttpRequestPtr& req,
                                  std::function<void(const HttpResponsePtr&)>&& callback) {
-    uint64_t user_id = getUserIdFromToken(req);
+    uint64_t user_id = std::stoull(req->getHeader("X-User-Id"));
 
     // 解析分页参数，默认第 1 页每页 200 条
     int page = 1;
@@ -75,8 +75,9 @@ void ChatController::getHistory(const HttpRequestPtr& req,
         result["data"]["page"] = page;
         result["data"]["page_size"] = page_size;
 
+        Json::FastWriter writer;
         auto resp = HttpResponse::newHttpResponse();
-        resp->setBody(result.toStyledString());
+        resp->setBody(writer.write(result));
         callback(resp);
 
     } catch (const std::exception& e) {
@@ -101,7 +102,7 @@ void ChatController::sendMessage(const HttpRequestPtr& req,
         return;
     }
 
-    uint64_t user_id = getUserIdFromToken(req);
+    uint64_t user_id = std::stoull(req->getHeader("X-User-Id"));
     std::string content = (*json)["content"].asString();
 
     if (content.empty()) {
@@ -194,12 +195,13 @@ void ChatController::sendMessage(const HttpRequestPtr& req,
             }
 
             Json::Value result_json;
+            Json::FastWriter writer;
             result_json["code"] = 200;
             result_json["message"] = "操作成功";
             result_json["data"]["reply"] = ai_reply;
 
             auto resp = HttpResponse::newHttpResponse();
-            resp->setBody(result_json.toStyledString());
+            resp->setBody(writer.write(result_json));
             (*cb_ptr)(resp);
         }, 30.0);
 
@@ -216,7 +218,7 @@ void ChatController::sendMessage(const HttpRequestPtr& req,
 // 参数：req - HTTP 请求对象；callback - 异步响应回调
 void ChatController::clearHistory(const HttpRequestPtr& req,
                                    std::function<void(const HttpResponsePtr&)>&& callback) {
-    uint64_t user_id = getUserIdFromToken(req);
+    uint64_t user_id = std::stoull(req->getHeader("X-User-Id"));
 
     try {
         auto conn = MySQLClient::instance().acquire();
@@ -252,7 +254,8 @@ std::string ChatController::generateError(int code, const std::string& message) 
     Json::Value result;
     result["code"] = code;
     result["message"] = message;
-    return result.toStyledString();
+    Json::FastWriter writer;
+    return writer.write(result);
 }
 
 // generateSuccess
@@ -263,5 +266,6 @@ std::string ChatController::generateSuccess(const std::string& message) {
     Json::Value result;
     result["code"] = 200;
     result["message"] = message;
-    return result.toStyledString();
+    Json::FastWriter writer;
+    return writer.write(result);
 }

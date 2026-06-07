@@ -1,9 +1,11 @@
 :root {
     --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
     --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    --primary: #667eea;
-    --primary-dark: #5a6fd6;
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --primary: #165DFF;
+    --primary-hover: #3d7aff;
+    --primary-active: #0a3aa8;
+    --primary-dark: #0f4ad4;
+    --primary-gradient: linear-gradient(135deg, #165DFF 0%, #00B42A 50%, #0FC6C2 100%);
     --danger: #f44336;
     --warning: #ff9800;
     --success: #4caf50;
@@ -35,15 +37,36 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+a, button, input, select, textarea {
+    touch-action: manipulation;
 }
 
 html, body {
     font-family: var(--font-family);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-tap-highlight-color: transparent;
+}
+
+html::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(225deg, #165DFF 0%, #165DFF 40%, #00B42A 60%, #0FC6C2 100%);
+    animation: gradientRotate 24s linear infinite;
+    z-index: -1;
+}
+
+@keyframes gradientRotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 input, select, textarea, button {
@@ -116,6 +139,11 @@ input, select, textarea, button {
 
 .form-group input:focus {
     border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(22,93,255,0.15);
+}
+
+.form-group input:focus-visible {
+    outline: none;
 }
 
 .form-group textarea {
@@ -158,23 +186,34 @@ input, select, textarea, button {
     font-size: var(--font-size-sm);
     font-family: var(--font-family);
     font-weight: 500;
-    transition: background 0.3s, opacity 0.3s;
+    transition: all 0.3s ease-in-out;
+    will-change: transform, box-shadow;
 }
 
-.btn-send-code:hover {
-    background: var(--primary-dark);
+.btn-send-code:hover:not(:disabled) {
+    background: var(--primary-hover);
+    transform: scale(1.05);
+    box-shadow: 0 6px 18px rgba(22,93,255,0.4);
+}
+
+.btn-send-code:active:not(:disabled) {
+    transform: scale(0.95);
+    background: var(--primary-active);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.18);
 }
 
 .btn-send-code:disabled {
-    background: #ccc;
+    background: #bbb;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .btn-primary {
     height: var(--btn-height);
     width: 100%;
     padding: 0 24px;
-    background: var(--primary-gradient);
+    background: var(--primary);
     color: #fff;
     border: none;
     border-radius: var(--border-radius);
@@ -182,21 +221,27 @@ input, select, textarea, button {
     font-weight: 600;
     cursor: pointer;
     font-family: var(--font-family);
-    transition: opacity 0.3s, transform 0.1s;
+    transition: all 0.3s ease-in-out;
+    will-change: transform, box-shadow;
 }
 
-.btn-primary:hover {
-    opacity: 0.9;
+.btn-primary:hover:not(:disabled) {
+    transform: scale(1.05);
+    background: var(--primary-hover);
+    box-shadow: 0 6px 20px rgba(22,93,255,0.45);
 }
 
-.btn-primary:active {
-    transform: scale(0.98);
+.btn-primary:active:not(:disabled) {
+    transform: scale(0.95);
+    background: var(--primary-active);
+    box-shadow: inset 0 3px 10px rgba(0,0,0,0.2);
 }
 
 .btn-primary:disabled {
-    background: #ccc;
+    background: #bbb;
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
 }
 
 .btn-sm {
@@ -208,20 +253,31 @@ input, select, textarea, button {
     font-size: var(--font-size-sm);
     font-family: var(--font-family);
     font-weight: 500;
-    transition: opacity 0.3s;
+    transition: all 0.3s ease-in-out;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 4px;
+    will-change: transform, box-shadow, filter;
 }
 
-.btn-sm:hover {
-    opacity: 0.85;
+.btn-sm:hover:not(:disabled) {
+    transform: scale(1.05);
+    filter: brightness(1.15);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+}
+
+.btn-sm:active:not(:disabled) {
+    transform: scale(0.95);
+    filter: brightness(0.75);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.2);
 }
 
 .btn-sm:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .btn-danger {
@@ -297,7 +353,7 @@ input, select, textarea, button {
 /* This section activates when UA detection adds .mobile-device to body/html */
 
 body.mobile-device {
-    background: #f5f6fa;
+    background: transparent;
     min-height: 100vh;
     display: block;
 }
@@ -488,7 +544,7 @@ body.mobile-device .chat-input-area button {
     height: 44px;
     min-width: 44px;
     padding: 0;
-    background: var(--primary-gradient);
+    background: var(--primary);
     color: #fff;
     border: none;
     border-radius: 50%;
@@ -498,10 +554,28 @@ body.mobile-device .chat-input-area button {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    transition: all 0.3s ease-in-out;
+    will-change: transform, box-shadow;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+body.mobile-device .chat-input-area button:hover:not(:disabled) {
+    background: var(--primary-hover);
+    transform: scale(1.05);
+    box-shadow: 0 6px 18px rgba(22,93,255,0.4);
+}
+
+body.mobile-device .chat-input-area button:active:not(:disabled) {
+    transform: scale(0.95);
+    background: var(--primary-active);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.18);
 }
 
 body.mobile-device .chat-input-area button:disabled {
-    background: #ccc;
+    background: #bbb;
+    transform: none;
+    box-shadow: none;
 }
 
 /* ============= Profile ============= */
@@ -607,6 +681,20 @@ body.mobile-device .search-bar button {
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
+    transition: all 0.3s ease-in-out;
+    will-change: transform, box-shadow;
+}
+
+body.mobile-device .search-bar button:hover {
+    background: var(--primary-hover);
+    transform: scale(1.05);
+    box-shadow: 0 6px 18px rgba(22,93,255,0.4);
+}
+
+body.mobile-device .search-bar button:active {
+    transform: scale(0.95);
+    background: var(--primary-active);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.18);
 }
 
 body.mobile-device .data-table-wrapper {
@@ -878,7 +966,7 @@ body.mobile-device #notifContent .notif-time {
 }
 
 .sidebar-nav a.active {
-    background: rgba(102,126,234,0.15);
+    background: rgba(22,93,255,0.15);
     color: #fff;
     border-left-color: var(--primary);
 }
@@ -922,19 +1010,26 @@ body.mobile-device #notifContent .notif-time {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: var(--primary-gradient);
+    background: var(--primary);
     color: #fff;
     border: none;
     font-size: 20px;
     cursor: pointer;
-    box-shadow: 0 2px 12px rgba(102,126,234,0.4);
-    transition: transform 0.3s, left 0.3s;
+    box-shadow: 0 2px 12px rgba(22,93,255,0.4);
+    transition: all 0.3s ease-in-out;
     align-items: center;
     justify-content: center;
 }
 
+.sidebar-toggle-btn:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 4px 16px rgba(22,93,255,0.5);
+}
+
 .sidebar-toggle-btn:active {
     transform: scale(0.92);
+    background: var(--primary-active);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.15);
 }
 
 /* ============= Content Area ============= */
@@ -1021,6 +1116,63 @@ body.mobile-device #notifContent .notif-time {
 
 .auth-footer a:hover {
     color: rgba(255,255,255,0.8);
+}
+
+/* ============= Modal Buttons ============= */
+.btn-modal-confirm {
+    min-width: 100px;
+    height: 36px;
+    padding: 0 20px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-family);
+    font-weight: 500;
+    transition: all 0.3s ease-in-out;
+    will-change: transform, box-shadow;
+}
+
+.btn-modal-confirm:hover {
+    background: var(--primary-hover);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(22,93,255,0.35);
+}
+
+.btn-modal-confirm:active {
+    transform: scale(0.95);
+    background: var(--primary-active);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.18);
+}
+
+.btn-modal-cancel {
+    min-width: 100px;
+    height: 36px;
+    padding: 0 20px;
+    background: #e8e8e8;
+    color: #555;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-family);
+    font-weight: 500;
+    transition: all 0.3s ease-in-out;
+    will-change: transform, box-shadow;
+}
+
+.btn-modal-cancel:hover {
+    background: #d0d0d0;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.btn-modal-cancel:active {
+    transform: scale(0.95);
+    background: #bbb;
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.12);
 }
 
 /* ============= Unified Modal System ============= */
@@ -1177,7 +1329,7 @@ body.mobile-device #notifContent .notif-time {
     height: var(--input-height);
     min-width: 80px;
     padding: 0 24px;
-    background: var(--primary-gradient);
+    background: var(--primary);
     color: #fff;
     border: none;
     border-radius: 12px;
@@ -1185,17 +1337,28 @@ body.mobile-device #notifContent .notif-time {
     font-size: var(--font-size-base);
     font-weight: 600;
     font-family: var(--font-family);
-    transition: opacity 0.3s;
+    transition: all 0.3s ease-in-out;
     flex-shrink: 0;
+    will-change: transform, box-shadow;
 }
 
-.chat-input-area button:hover {
-    opacity: 0.9;
+.chat-input-area button:hover:not(:disabled) {
+    background: var(--primary-hover);
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(22,93,255,0.45);
+}
+
+.chat-input-area button:active:not(:disabled) {
+    transform: scale(0.95);
+    background: var(--primary-active);
+    box-shadow: inset 0 3px 10px rgba(0,0,0,0.2);
 }
 
 .chat-input-area button:disabled {
-    background: #ccc;
+    background: #bbb;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 /* ============= Icon Buttons & Tooltips ============= */
@@ -1216,22 +1379,27 @@ body.mobile-device #notifContent .notif-time {
 }
 
 .btn-send {
-    background: var(--primary-gradient);
+    background: var(--primary);
     color: #fff;
-    box-shadow: 0 2px 8px rgba(102,126,234,0.4);
+    box-shadow: 0 2px 8px rgba(22,93,255,0.4);
+    transition: all 0.3s ease-in-out;
+    will-change: transform, box-shadow;
 }
 
 .btn-send:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 16px rgba(102,126,234,0.5);
+    background: var(--primary-hover);
+    box-shadow: 0 6px 20px rgba(22,93,255,0.5);
 }
 
 .btn-send:active {
     transform: scale(0.95);
+    background: var(--primary-active);
+    box-shadow: inset 0 3px 10px rgba(0,0,0,0.2);
 }
 
 .btn-send:disabled {
-    background: #ccc;
+    background: #bbb;
     box-shadow: none;
     cursor: not-allowed;
     transform: none;
@@ -1452,11 +1620,20 @@ body.mobile-device .btn-icon[data-tooltip]::before {
     font-size: var(--font-size-base);
     font-family: var(--font-family);
     font-weight: 500;
-    transition: opacity 0.2s;
+    transition: all 0.3s ease-in-out;
+    will-change: transform, box-shadow;
 }
 
 .search-bar button:hover {
-    opacity: 0.9;
+    transform: scale(1.05);
+    background: var(--primary-hover);
+    box-shadow: 0 6px 18px rgba(22,93,255,0.4);
+}
+
+.search-bar button:active {
+    transform: scale(0.95);
+    background: var(--primary-active);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.18);
 }
 
 .data-table {
@@ -1509,8 +1686,8 @@ body.mobile-device .btn-icon[data-tooltip]::before {
 }
 
 .pagination button {
-    height: 34px;
-    min-width: 34px;
+    height: 36px;
+    min-width: 36px;
     padding: 0 10px;
     border: 1px solid var(--border-color);
     background: #fff;
@@ -1519,15 +1696,22 @@ body.mobile-device .btn-icon[data-tooltip]::before {
     font-size: var(--font-size-sm);
     font-family: var(--font-family);
     color: var(--text-secondary);
-    transition: all 0.2s;
+    transition: all 0.3s ease-in-out;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    will-change: transform, box-shadow;
 }
 
-.pagination button:hover {
+.pagination button:hover:not(:disabled):not(.active) {
     background: #f0f0f0;
     border-color: #ccc;
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.pagination button:active:not(:disabled) {
+    transform: scale(0.95);
 }
 
 .pagination button.active {
@@ -1539,6 +1723,7 @@ body.mobile-device .btn-icon[data-tooltip]::before {
 .pagination button:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+    transform: none;
 }
 
 .empty-state {
