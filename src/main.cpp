@@ -1,6 +1,7 @@
 #include <drogon/drogon.h>
 #include <fstream>
 #include <iostream>
+#include <cstdlib>
 #include <random>
 #include <sstream>
 #include <iomanip>
@@ -16,6 +17,15 @@
 #include "middleware/AuthMiddleware.h"
 
 using namespace drogon;
+
+// get_env_or
+// 功能：读取环境变量，若不存在则返回默认值（容器化适配）
+// 参数：env_name - 环境变量名；default_val - 默认值
+// 返回值：string - 环境变量值或默认值
+static std::string get_env_or(const char* env_name, const std::string& default_val) {
+    const char* val = std::getenv(env_name);
+    return val ? std::string(val) : default_val;
+}
 
 // loadConfig
 // 功能：从配置文件路径读取并解析 JSON 格式的配置
@@ -146,6 +156,12 @@ int main(int argc, char* argv[]) {
 
     // 初始化 MySQL 连接池
     auto& mysql_cfg = config["database"]["mysql"];
+    // 环境变量覆盖数据库连接配置（容器化适配）
+    mysql_cfg["host"] = get_env_or("MYSQL_HOST", mysql_cfg["host"].asString());
+    mysql_cfg["port"] = std::stoi(get_env_or("MYSQL_PORT", std::to_string(mysql_cfg["port"].asInt())));
+    mysql_cfg["user"] = get_env_or("MYSQL_USER", mysql_cfg["user"].asString());
+    mysql_cfg["password"] = get_env_or("MYSQL_PASSWORD", mysql_cfg["password"].asString());
+    mysql_cfg["database"] = get_env_or("MYSQL_DATABASE", mysql_cfg["database"].asString());
     MySQLClient::instance().init(
         mysql_cfg["host"].asString(),
         mysql_cfg["port"].asInt(),
@@ -156,6 +172,10 @@ int main(int argc, char* argv[]) {
 
     // 初始化 Redis 连接
     auto& redis_cfg = config["database"]["redis"];
+    // 环境变量覆盖 Redis 连接配置（容器化适配）
+    redis_cfg["host"] = get_env_or("REDIS_HOST", redis_cfg["host"].asString());
+    redis_cfg["port"] = std::stoi(get_env_or("REDIS_PORT", std::to_string(redis_cfg["port"].asInt())));
+    redis_cfg["password"] = get_env_or("REDIS_PASSWORD", redis_cfg["password"].asString());
     RedisClient::instance().init(
         redis_cfg["host"].asString(),
         redis_cfg["port"].asInt(),
@@ -215,7 +235,12 @@ int main(int argc, char* argv[]) {
         app().addListener("0.0.0.0", server_cfg["port"].asInt());
     }
 
-    app().setThreadNum(server_cfg["thread_num"].asInt());
+    // 配置线程数：配置中设为 0 或负数时自动使用 CPU 核数
+    int thread_num = server_cfg["thread_num"].asInt();
+    if (thread_num <= 0) {
+        thread_num = static_cast<int>(std::thread::hardware_concurrency());
+    }
+    app().setThreadNum(thread_num);
 
     if (!server_cfg["document_root"].asString().empty()) {
         app().setDocumentRoot(server_cfg["document_root"].asString());
@@ -223,6 +248,9 @@ int main(int argc, char* argv[]) {
 
     app().setUploadPath("./uploads");
     app().enableSession(false);
+
+    // 静态文件缓存 1 小时，减少重复文件读取
+    app().setStaticFilesCacheTime(3600);
 
     app().setLogPath("logs/");
     app().setLogLevel(trantor::Logger::kInfo);
@@ -241,6 +269,21 @@ int main(int argc, char* argv[]) {
             "form-action 'self'"
         );
     });
+
+    // 健康检查端点（容器化适配：供 Docker HEALTHCHECK 和 K8s 探针使用）
+    app().registerHandler(
+        "/health",
+        [](const HttpRequestPtr& req,
+           std::function<void(const HttpResponsePtr&)>&& callback) {
+            (void)req;
+            Json::Value resp;
+            resp["status"] = "ok";
+            resp["timestamp"] = (Json::Int64)std::time(nullptr);
+            auto http_resp = HttpResponse::newHttpJsonResponse(resp);
+            callback(http_resp);
+        },
+        {Get}
+    );
 
     APP_LOG_INFO("Server starting on {}://0.0.0.0:{}",
                  use_https ? "https" : "http",

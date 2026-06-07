@@ -17,7 +17,7 @@
         <form id="loginForm">
             <div class="form-group">
                 <label>用户名</label>
-                <input type="text" id="username" placeholder="请输入用户名或邮箱" required autocomplete="username">
+                <input type="text" id="username" placeholder="请输入用户名或邮箱" required autocomplete="username" autofocus inputmode="text">
             </div>
             <div class="form-group">
                 <label>密码</label>
@@ -42,7 +42,7 @@
                 <p id="banReasonText" style="padding:8px 12px;border-radius:6px;margin-top:6px;font-size:13px;"></p>
             </div>
             <div class="modal-footer" style="justify-content:center;margin-top:14px;">
-                <button class="btn-sm" style="min-width:100px;background:var(--primary-gradient);color:#fff;" onclick="closeBanModal()">确认</button>
+                <button class="btn-sm" style="min-width:100px;background:var(--primary);color:#fff;" onclick="closeBanModal()">确认</button>
             </div>
         </div>
     </div>
@@ -142,7 +142,7 @@
                 '</div>' +
                 '<div class="modal-footer" style="justify-content:center;gap:16px;">' +
                 '  <button class="btn-sm" style="min-width:130px;background:#ccc;color:#333;" onclick="cancelCooling()">取消登录</button>' +
-                '  <button class="btn-sm" style="min-width:130px;background:var(--primary-gradient);color:#fff;" onclick="confirmCoolingLogin()">继续登录</button>' +
+                '  <button class="btn-sm" style="min-width:130px;background:var(--primary);color:#fff;" onclick="confirmCoolingLogin()">继续登录</button>' +
                 '</div>';
             modal.classList.add('show');
         }

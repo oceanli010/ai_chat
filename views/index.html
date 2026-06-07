@@ -315,8 +315,8 @@
                 '<h3>修改用户名</h3>' +
                 '<div class="form-group"><label>新用户名</label><input type="text" id="editUsername" placeholder="输入新用户名" value="' + escapeHtml(currentUser.username) + '"></div>' +
                 '<div class="modal-footer">' +
-                '  <button class="btn-sm" style="background:#ccc;color:#333;" onclick="closeModal()">取消</button>' +
-                '  <button class="btn-sm" style="background:var(--primary-gradient);color:#fff;" onclick="updateProfile()">保存</button>' +
+                '  <button class="btn-modal-cancel" onclick="closeModal()">取消</button>' +
+                '  <button class="btn-modal-confirm" onclick="updateProfile()">保存</button>' +
                 '</div>';
             modal.classList.add('show');
         }
@@ -330,8 +330,8 @@
                 '<div class="form-group"><label>新密码</label><input type="password" id="newPass" placeholder="6-128位新密码"></div>' +
                 '<div class="form-group"><label>确认新密码</label><input type="password" id="confirmPass" placeholder="请再次输入新密码"></div>' +
                 '<div class="modal-footer">' +
-                '  <button class="btn-sm" style="background:#ccc;color:#333;" onclick="closeModal()">取消</button>' +
-                '  <button class="btn-sm" style="background:var(--primary-gradient);color:#fff;" onclick="changePassword()">保存</button>' +
+                '  <button class="btn-modal-cancel" onclick="closeModal()">取消</button>' +
+                '  <button class="btn-modal-confirm" onclick="changePassword()">保存</button>' +
                 '</div>';
             modal.classList.add('show');
         }
@@ -480,8 +480,8 @@
                 '<h3>确认退出登录</h3>' +
                 '<p style="color:#555;margin:16px 0;font-size:15px;">确定要退出当前账号吗？</p>' +
                 '<div class="modal-footer" style="justify-content:center;">' +
-                '  <button class="btn-sm" style="min-width:120px;background:#ccc;color:#333;" onclick="closeModal()">取消</button>' +
-                '  <button class="btn-sm" style="min-width:120px;background:var(--primary-gradient);color:#fff;" onclick="confirmLogout()">确认退出</button>' +
+                '  <button class="btn-modal-cancel" onclick="closeModal()">取消</button>' +
+                '  <button class="btn-modal-confirm" onclick="confirmLogout()">确认退出</button>' +
                 '</div>';
             modal.classList.add('show');
         }

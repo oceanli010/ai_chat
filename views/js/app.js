@@ -45,7 +45,7 @@ function showBanNotification(data) {
         '<p style="padding:8px 12px;border-radius:6px;margin-top:6px;font-size:13px;"><strong>封禁理由：</strong>' + escapeHtml(reason) + '</p>' +
         '</div>' +
         '<div class="modal-footer" style="justify-content:center;margin-top:14px;">' +
-        '<button class="btn-sm" style="min-width:100px;background:var(--primary-gradient);color:#fff;" onclick="dismissBanModal()">确认</button>' +
+        '<button class="btn-sm" style="min-width:100px;background:var(--primary);color:#fff;" onclick="dismissBanModal()">确认</button>' +
         '</div>' +
         '</div>';
 

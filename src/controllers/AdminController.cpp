@@ -11,10 +11,20 @@ void AdminController::setEmailSender(std::shared_ptr<EmailSender> sender) {
 
 // getStats
 // 功能：获取系统统计数据（注册用户数、在线用户数、总聊天数）
+// 说明：使用 Redis 缓存（5秒过期）避免频繁全表扫描
 // 参数：req - HTTP 请求对象；callback - 异步响应回调
 void AdminController::getStats(const HttpRequestPtr& req,
                                 std::function<void(const HttpResponsePtr&)>&& callback) {
     try {
+        // 尝试从 Redis 缓存获取统计数据
+        std::string cached = RedisClient::instance().get("stats:cache");
+        if (!cached.empty()) {
+            auto resp = HttpResponse::newHttpResponse();
+            resp->setBody(cached);
+            callback(resp);
+            return;
+        }
+
         auto conn = MySQLClient::instance().acquire();
 
         // 查询活跃普通用户数量
@@ -46,8 +56,12 @@ void AdminController::getStats(const HttpRequestPtr& req,
         result["message"] = "操作成功";
         result["data"] = data;
 
+        // 写入 Redis 缓存，5秒过期
+        Json::FastWriter writer;
+        RedisClient::instance().setex("stats:cache", 5, writer.write(result));
+
         auto resp = HttpResponse::newHttpResponse();
-        resp->setBody(result.toStyledString());
+        resp->setBody(writer.write(result));
         callback(resp);
 
     } catch (const std::exception& e) {
@@ -120,8 +134,9 @@ void AdminController::getUsers(const HttpRequestPtr& req,
         result["data"]["page"] = page;
         result["data"]["page_size"] = page_size;
 
+        Json::FastWriter writer;
         auto resp = HttpResponse::newHttpResponse();
-        resp->setBody(result.toStyledString());
+        resp->setBody(writer.write(result));
         callback(resp);
 
     } catch (const std::exception& e) {
@@ -212,8 +227,9 @@ void AdminController::searchUsers(const HttpRequestPtr& req,
         result["message"] = "操作成功";
         result["data"]["users"] = users;
 
+        Json::FastWriter writer;
         auto resp = HttpResponse::newHttpResponse();
-        resp->setBody(result.toStyledString());
+        resp->setBody(writer.write(result));
         callback(resp);
 
     } catch (const std::exception& e) {
@@ -516,8 +532,9 @@ void AdminController::getLogs(const HttpRequestPtr& req,
         result["data"]["page"] = page;
         result["data"]["page_size"] = page_size;
 
+        Json::FastWriter writer;
         auto resp = HttpResponse::newHttpResponse();
-        resp->setBody(result.toStyledString());
+        resp->setBody(writer.write(result));
         callback(resp);
 
     } catch (const std::exception& e) {
@@ -536,7 +553,8 @@ std::string AdminController::generateError(int code, const std::string& message)
     Json::Value result;
     result["code"] = code;
     result["message"] = message;
-    return result.toStyledString();
+    Json::FastWriter writer;
+    return writer.write(result);
 }
 
 // generateSuccess
@@ -547,5 +565,6 @@ std::string AdminController::generateSuccess(const std::string& message) {
     Json::Value result;
     result["code"] = 200;
     result["message"] = message;
-    return result.toStyledString();
+    Json::FastWriter writer;
+    return writer.write(result);
 }
